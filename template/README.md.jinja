@@ -1,0 +1,31 @@
+# {{ title_name }}
+
+{{ description }}
+
+## Install
+
+```sh
+pi install git:{{ github_install_source }}
+```
+
+For this private package on this machine, load the local working copy from Pi settings:
+
+```json
+{
+  "packages": ["/home/zigai/Projects/{{ repo_name }}"]
+}
+```
+
+## Starter
+
+{{ starter_readme }}{% if resources_readme %}
+
+{{ resources_readme }}{% endif %}
+
+## Development
+
+```sh
+npm install
+just lint
+just test
+```

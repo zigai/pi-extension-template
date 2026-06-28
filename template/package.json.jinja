@@ -1,0 +1,83 @@
+{
+  "name": {{ package_name|tojson }},
+  "version": "0.1.0",
+  "private": true,
+  "description": {{ description|tojson }},
+  "keywords": [
+{%- for keyword in keywords %}
+    {{ keyword|tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  ],
+  "homepage": {{ (repository_url ~ "#readme")|tojson }},
+  "bugs": {
+    "url": {{ (repository_url ~ "/issues")|tojson }}
+  },
+  "license": {{ license_value|tojson }},
+  "author": {{ author_name|tojson }},
+  "repository": {
+    "type": "git",
+    "url": {{ repository_git_url|tojson }}
+  },
+  "files": [
+    "src",
+{%- if "skills" in resource_types %}
+    "skills",
+{%- endif %}
+{%- if "prompts" in resource_types %}
+    "prompts",
+{%- endif %}
+    "README.md"{% if copyright_license != "None" %},
+    "LICENSE"{% endif %}
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "lint": "oxlint -c ./.oxlintrc.json .",
+    "lint:fix": "oxlint -c ./.oxlintrc.json . --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
+    "verify": "npm run check"
+  },
+{%- if package_dependencies %}
+  "dependencies": {
+{%- for name, version in package_dependencies %}
+    {{ name|tojson }}: {{ version|tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  },
+{%- else %}
+  "dependencies": {},
+{%- endif %}
+  "devDependencies": {
+{%- for name, version in dev_dependencies %}
+    {{ name|tojson }}: {{ version|tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  },
+  "peerDependencies": {
+{%- for name, version in peer_dependencies %}
+    {{ name|tojson }}: {{ version|tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+  },
+  "peerDependenciesMeta": {
+{%- for name, version in peer_dependencies %}
+    {{ name|tojson }}: {
+      "optional": true
+    }{% if not loop.last %},{% endif %}
+{%- endfor %}
+  },
+  "engines": {
+    "node": ">=22.19.0 <27"
+  },
+  "packageManager": "npm@11.0.0",
+  "pi": {
+{%- for name, paths in pi_manifest_entries %}
+    {{ name|tojson }}: [
+{%- for path in paths %}
+      {{ path|tojson }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    ]{% if not loop.last %},{% endif %}
+{%- endfor %}
+  }
+}

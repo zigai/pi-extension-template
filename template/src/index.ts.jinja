@@ -1,0 +1,114 @@
+{%- if starter_kind == "typed-command" -%}
+import { defineTypedCommand, registerTypedCommand } from "pi-typed-commands";
+{% elif starter_kind == "tool" -%}
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { Type, type Static } from "typebox";
+{% else -%}
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+{% endif %}
+/** Package display name used in user-visible starter messages. */
+export const extensionName = {{ title_name|tojson }};
+
+/** Generated npm package name. */
+export const packageName = {{ package_name|tojson }};
+
+/** Starter shape selected when this repository was generated. */
+export const starterKind = {{ starter_kind|tojson }};
+
+{%- if starter_kind in ["plain-command", "typed-command"] %}
+/** Slash command registered by this extension. */
+export const commandName = {{ command_name|tojson }};
+{%- endif %}
+
+{%- if starter_kind == "tool" %}
+/** Model-callable tool registered by this extension. */
+export const toolName = {{ tool_name|tojson }};
+
+const toolParameters = Type.Object({
+    message: Type.String({ description: "Message to echo back through the starter tool." }),
+});
+
+/** Input accepted by the {{ tool_name }} tool. */
+export type {{ tool_type_name }}Input = Static<typeof toolParameters>;
+{%- endif %}
+
+{%- if starter_kind == "typed-command" %}
+type TypedCommandPiApi = Parameters<typeof registerTypedCommand>[0];
+
+const typedCommand = defineTypedCommand({
+    name: commandName,
+    description: {{ command_description|tojson }},
+    args: {
+        name: {
+            type: "string",
+            position: 0,
+            default: "world",
+            description: "Name to greet.",
+        },
+        loud: {
+            type: "boolean",
+            description: "Uppercase the greeting.",
+        },
+    },
+    run({ name, loud }, ctx): void {
+        const greeting = `Hello, ${name}!`;
+        ctx.ui.notify(loud ? greeting.toUpperCase() : greeting, "info");
+    },
+});
+{%- endif %}
+
+/** Register the {{ title_name }} Pi extension. */
+export default function extension(pi: {% if starter_kind == "typed-command" %}TypedCommandPiApi{% else %}ExtensionAPI{% endif %}): void {
+{%- if starter_kind == "plain-command" %}
+    pi.registerCommand(commandName, {
+        description: {{ command_description|tojson }},
+        async handler(args, ctx): Promise<void> {
+            const cleanedArgs = args.trim();
+            const suffix = cleanedArgs ? ` with args: ${cleanedArgs}` : "";
+            ctx.ui.notify(`${extensionName} command ran${suffix}.`, "info");
+        },
+    });
+{%- elif starter_kind == "typed-command" %}
+    registerTypedCommand(pi, typedCommand);
+{%- elif starter_kind == "tool" %}
+    pi.registerTool({
+        name: toolName,
+        label: {{ tool_label|tojson }},
+        description: {{ tool_description|tojson }},
+        promptSnippet: "Echo a message through the {{ tool_name }} starter tool.",
+        promptGuidelines: [
+            "Use {{ tool_name }} only when the user asks to exercise the {{ title_name }} starter tool.",
+        ],
+        parameters: toolParameters,
+        async execute(_toolCallId, params) {
+            return {
+                content: [
+                    {
+                        type: "text",
+                        text: `${extensionName} received: ${params.message}`,
+                    },
+                ],
+                details: {
+                    echoed: params.message,
+                },
+            };
+        },
+    });
+{%- else %}
+    pi.on("session_start", (_event, ctx): void => {
+        if (!ctx.hasUI) {
+            return;
+        }
+
+        ctx.ui.setStatus(packageName, ctx.ui.theme.fg("accent", `${extensionName} loaded`));
+    });
+
+    pi.on("session_shutdown", (_event, ctx): void => {
+        if (!ctx.hasUI) {
+            return;
+        }
+
+        ctx.ui.setStatus(packageName, undefined);
+    });
+{%- endif %}
+}
