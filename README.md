@@ -22,7 +22,6 @@ sprout zigai/pi-project-template /home/zigai/Projects/pi-example
 - Strict TypeScript, oxlint, oxfmt, and Node test setup
 - `README.md` matching the personal Pi extension README shape
 - `Justfile` recipes: `fmt`, `lint`, `test`, and `fix`
-- Optional starter skill and prompt package resources
 - Optional private GitHub repository creation through `gh repo create`
 
 ## Development

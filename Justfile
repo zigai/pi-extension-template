@@ -15,7 +15,6 @@ test:
         --repository-url https://github.com/zigai/pi-template-smoke \
         --starter-kind plain-command \
         --command-name template-smoke \
-        --resource-types skills \
         --pi-version 0.80.2 \
         --copyright-license MIT \
         --github-workflows ci \

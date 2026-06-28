@@ -36,11 +36,6 @@ STARTER_KIND_CHOICES = [
     ("lifecycle", "Lifecycle hook"),
 ]
 
-RESOURCE_CHOICES = [
-    ("skills", "Skills directory"),
-    ("prompts", "Prompt templates directory"),
-]
-
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 
 LICENSE_CHOICES = [
@@ -225,14 +220,8 @@ def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     return [(name, "*") for name in sorted(peers)]
 
 
-def _pi_manifest_entries(answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
-    entries = [("extensions", ["./src/index.ts"])]
-    resource_types = set(_string_sequence(answers.get("resource_types")))
-    if "skills" in resource_types:
-        entries.append(("skills", ["./skills"]))
-    if "prompts" in resource_types:
-        entries.append(("prompts", ["./prompts"]))
-    return entries
+def _pi_manifest_entries(_answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
+    return [("extensions", ["./src/index.ts"])]
 
 
 def _string_sequence(value: object) -> list[str]:
@@ -288,20 +277,6 @@ def _starter_readme(*, starter_kind: str, command_name: str, tool_name: str) -> 
     return "This template registers starter `session_start` and `session_shutdown` lifecycle hooks in `src/index.ts`."
 
 
-def _resources_readme(*, resource_types: Sequence[str], skill_name: str, prompt_name: str) -> str:
-    sections: list[str] = []
-    if "skills" in resource_types:
-        sections.append(
-            "## Skills\n\n"
-            f"This package includes `skills/{skill_name}/SKILL.md` as a starter Agent Skill."
-        )
-    if "prompts" in resource_types:
-        sections.append(
-            "## Prompts\n\n"
-            f"This package includes `prompts/{prompt_name}.md` as a starter prompt template."
-        )
-    return "\n\n".join(sections)
-
 
 def _derived_answers(
     env: Environment,
@@ -316,19 +291,11 @@ def _derived_answers(
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
     starter_kind = str(answers["starter_kind"])
-    skill_name = _kebab_case(feature_name, fallback="starter-skill")
-    prompt_name = _kebab_case(feature_name, fallback="starter-prompt")
-    resource_types = _string_sequence(answers.get("resource_types"))
 
     starter_readme = _starter_readme(
         starter_kind=starter_kind,
         command_name=command_name,
         tool_name=tool_name,
-    )
-    resources_readme = _resources_readme(
-        resource_types=resource_types,
-        skill_name=skill_name,
-        prompt_name=prompt_name,
     )
     test_expected_exports: list[tuple[str, str]] = [
         ("packageName", package_name),
@@ -355,12 +322,8 @@ def _derived_answers(
             "package_name_unscoped": _package_name_without_scope(package_name),
             "peer_dependencies": _peer_dependencies(answers),
             "pi_manifest_entries": _pi_manifest_entries(answers),
-            "prompt_name": prompt_name,
             "repository_git_url": _repository_git_url(repository_url),
             "repository_url": repository_url,
-            "resource_types": resource_types,
-            "resources_readme": resources_readme,
-            "skill_name": skill_name,
             "starter_kind": starter_kind,
             "starter_readme": starter_readme,
             "test_expected_exports": test_expected_exports,
@@ -465,14 +428,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             when=lambda answers: answers.get("starter_kind") == "tool",
         ),
         Question(
-            key="resource_types",
-            prompt="Additional Pi package resources",
-            help="Optional conventional package resource directories to include.",
-            choices=RESOURCE_CHOICES,
-            multiselect=True,
-            default=[],
-        ),
-        Question(
             key="pi_version",
             prompt="Pi dev dependency version",
             help="Keep this aligned with the locally installed Pi version used for docs and checks.",
@@ -523,14 +478,9 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 
 
 def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
-    resource_types = set(_string_sequence(answers.get("resource_types")))
     github_workflows = set(_string_sequence(answers.get("github_workflows")))
 
     if relative_path == "LICENSE.jinja" and answers.get("copyright_license") == "None":
-        return True
-    if relative_path.startswith("skills/") and "skills" not in resource_types:
-        return True
-    if relative_path.startswith("prompts/") and "prompts" not in resource_types:
         return True
     if relative_path.startswith(".github/") and "ci" not in github_workflows:
         return True
