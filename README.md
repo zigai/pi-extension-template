@@ -18,6 +18,7 @@ sprout zigai/pi-project-template /home/zigai/Projects/pi-example
 
 - Pi package metadata with an explicit `pi` manifest
 - `src/index.ts` starter extension using a plain command, typed command, tool, or lifecycle hook
+  - The typed-command starter uses `pi-typed-commands` from the sibling `/home/zigai/Projects/pi-command-args` checkout.
 - Strict TypeScript, oxlint, oxfmt, and Node test setup
 - `README.md` matching the personal Pi extension README shape
 - `Justfile` recipes: `fmt`, `lint`, `test`, and `fix`

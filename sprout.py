@@ -279,7 +279,9 @@ def _starter_readme(*, starter_kind: str, command_name: str, tool_name: str) -> 
             "```text\n"
             f"/{command_name} world --loud\n"
             f"/{command_name} --help\n"
-            "```"
+            "```\n\n"
+            "The generated `package.json` expects the typed-command helper at "
+            "`../pi-command-args` for local private development."
         )
     if starter_kind == "tool":
         return f"This template registers the `{tool_name}` model-callable tool in `src/index.ts`."
