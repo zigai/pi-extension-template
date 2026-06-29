@@ -16,10 +16,12 @@ test:
         --starter-kind plain-command \
         --command-name template-smoke \
         --pi-version 0.80.2 \
-        --copyright-license MIT \
+        --copyright-license BSD-3-Clause \
         --github-workflows ci \
         --create-package-lock no \
         --create-github-repo no \
         --git-init no
+    grep -q 'BSD 3-Clause License' .tmp/pi-template-smoke/LICENSE
+    grep -q '"license": "BSD-3-Clause"' .tmp/pi-template-smoke/package.json
 
 fix: fmt
