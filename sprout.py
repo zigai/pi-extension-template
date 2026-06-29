@@ -12,7 +12,7 @@ from jinja2 import Environment
 from sprout import CurrentYearExtension, GitDefaultsExtension, ManifestContext, Question
 from sprout.cli import render_templates as sprout_render_templates
 from sprout.project import (
-    COMMON_LICENSE_CHOICES,
+    SPDX_LICENSE_CHOICES,
     github_install_source,
     github_repository_url,
     package_license_value,
@@ -40,12 +40,7 @@ STARTER_KIND_CHOICES = [
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 
-COMMON_LICENSE_LABELS = dict(COMMON_LICENSE_CHOICES)
-LICENSE_CHOICES = [
-    ("MIT", COMMON_LICENSE_LABELS["MIT"]),
-    ("Apache-2.0", COMMON_LICENSE_LABELS["Apache-2.0"]),
-    ("None", COMMON_LICENSE_LABELS["None"]),
-]
+LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
 PI_BUNDLED_PACKAGES = {
     "@earendil-works/pi-ai",
@@ -284,6 +279,7 @@ def _derived_answers(
     result.setdefault("command_name", command_name)
     result.setdefault("github_workflows", [])
     result.setdefault("author_name", str(env.globals.get("git_user_name") or "zigai"))
+    result.setdefault("copyright_holder_email", str(answers.get("author_email") or ""))
     result.setdefault("destination_path", str(destination))
     return result
 
