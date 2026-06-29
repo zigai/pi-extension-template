@@ -11,7 +11,7 @@ My personal template for Pi extension package repositories.
 * **Testing setup** with Node's built-in test runner, `tsx`, and coverage output
 * **Optional GitHub Actions workflow** for CI
 * **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/)
-* **License selection** for MIT, Apache-2.0, or no license
+* **License selection** for the shared SPDX license set used by the Python template
 * **Generated `README.md`** with Pi install instructions and local package setup notes
 * **Generated `AGENTS.md`** with Pi extension workflow guidance
 
