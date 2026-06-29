@@ -276,7 +276,6 @@ def _derived_answers(
     result.setdefault("command_name", command_name)
     result.setdefault("github_workflows", [])
     result.setdefault("author_name", str(env.globals.get("git_user_name") or "zigai"))
-    result.setdefault("copyright_holder_email", str(answers.get("author_email") or ""))
     result.setdefault("destination_path", str(destination))
     return result
 
