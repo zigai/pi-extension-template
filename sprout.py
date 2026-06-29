@@ -3,30 +3,32 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
-from datetime import date
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Protocol
 
 from jinja2 import Environment
-from jinja2.ext import Extension
 
-from sprout import CurrentYearExtension, GitDefaultsExtension, Question
+from sprout import CurrentYearExtension, GitDefaultsExtension, ManifestContext, Question
 from sprout.cli import render_templates as sprout_render_templates
+from sprout.project import (
+    COMMON_LICENSE_CHOICES,
+    github_install_source,
+    github_repository_url,
+    package_license_value,
+    repository_git_url,
+    run_git_post_actions,
+    should_skip_license_file,
+    validate_npm_package_name,
+    validate_repository_name,
+    validate_semver,
+)
+from sprout.prompt import console as sprout_console
 from sprout.validators import validate_repository_url
 
 
 class ConsoleLike(Protocol):
     def print(self, message: object) -> None: ...
-
-
-RenderTemplatesFn = Callable[..., list[Path]]
-
-
-class PiTemplateExtension(Extension):
-    def __init__(self, environment: Environment) -> None:
-        super().__init__(environment)
-        environment.globals["current_year"] = date.today().year
 
 
 STARTER_KIND_CHOICES = [
@@ -38,10 +40,11 @@ STARTER_KIND_CHOICES = [
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 
+COMMON_LICENSE_LABELS = dict(COMMON_LICENSE_CHOICES)
 LICENSE_CHOICES = [
-    ("MIT", "MIT License"),
-    ("Apache-2.0", "Apache License 2.0"),
-    ("None", "No license"),
+    ("MIT", COMMON_LICENSE_LABELS["MIT"]),
+    ("Apache-2.0", COMMON_LICENSE_LABELS["Apache-2.0"]),
+    ("None", COMMON_LICENSE_LABELS["None"]),
 ]
 
 PI_BUNDLED_PACKAGES = {
@@ -96,27 +99,12 @@ def _default_tool_name(answers: Mapping[str, object], destination: Path) -> str:
     return _snake_case(_default_feature_name(answers, destination), fallback="starter_tool")
 
 
-def _default_repository_url(env: Environment, answers: Mapping[str, object], destination: Path) -> str:
+def _default_repository_url(
+    env: Environment, answers: Mapping[str, object], destination: Path
+) -> str:
     repo = str(answers.get("repo_name") or _default_repo_name(destination)).strip()
     username = str(env.globals.get("github_username") or "zigai").strip() or "zigai"
-    return f"https://github.com/{username}/{repo}"
-
-
-def _github_repo_target(answers: Mapping[str, object]) -> str:
-    repository_url = str(answers.get("repository_url") or "").strip()
-    match = re.match(
-        r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$",
-        repository_url,
-    )
-    if match:
-        return f"{match.group('owner')}/{match.group('repo')}"
-
-    repo_name = str(answers.get("repo_name") or "").strip()
-    return repo_name or "pi-extension"
-
-
-def _is_github_repo_url(value: object) -> bool:
-    return isinstance(value, str) and value.strip().startswith("https://github.com/")
+    return github_repository_url(username, repo)
 
 
 def _installed_pi_version() -> str:
@@ -135,24 +123,6 @@ def _installed_pi_version() -> str:
     return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.2"
 
 
-def validate_package_name(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
-    name = value.strip()
-    if not name:
-        return False, "Package name is required."
-    if not re.fullmatch(r"(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*", name):
-        return False, "Package name must be a valid lowercase npm package name."
-    return True, None
-
-
-def validate_repo_name(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
-    name = value.strip()
-    if not name:
-        return False, "Repository name is required."
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", name):
-        return False, "Repository name may only include letters, numbers, dots, underscores, and hyphens."
-    return True, None
-
-
 def validate_command_name(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
     name = value.strip()
     if not re.fullmatch(r"[a-z][a-z0-9-]*", name):
@@ -165,12 +135,6 @@ def validate_tool_name(value: str, _answers: Mapping[str, object]) -> tuple[bool
     if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
         return False, "Tool name must be lowercase snake_case and start with a letter."
     return True, None
-
-
-def validate_pi_version(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
-    if re.fullmatch(r"\d+\.\d+\.\d+", value.strip()):
-        return True, None
-    return False, "Pi version must be a semantic version like 0.80.2."
 
 
 def _package_name_without_scope(name: str) -> str:
@@ -232,26 +196,6 @@ def _string_sequence(value: object) -> list[str]:
     return []
 
 
-def _license_value(answers: Mapping[str, object]) -> str:
-    license_name = str(answers.get("copyright_license") or "None")
-    return "UNLICENSED" if license_name == "None" else license_name
-
-
-def _repository_git_url(url: str) -> str:
-    cleaned = url.rstrip("/")
-    if cleaned.startswith("https://github.com/") and not cleaned.endswith(".git"):
-        return f"git+{cleaned}.git"
-    return f"git+{cleaned}"
-
-
-def _github_install_source(answers: Mapping[str, object]) -> str:
-    repository_url = str(answers.get("repository_url") or "").strip()
-    match = re.match(r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+?)(?:\.git)?/?$", repository_url)
-    if not match:
-        return str(answers.get("repo_name") or "pi-extension")
-    return f"github.com/{match.group('owner')}/{match.group('repo')}"
-
-
 def _starter_readme(*, starter_kind: str, command_name: str, tool_name: str) -> str:
     if starter_kind == "plain-command":
         return (
@@ -275,7 +219,6 @@ def _starter_readme(*, starter_kind: str, command_name: str, tool_name: str) -> 
     if starter_kind == "tool":
         return f"This template registers the `{tool_name}` model-callable tool in `src/index.ts`."
     return "This template registers starter `session_start` and `session_shutdown` lifecycle hooks in `src/index.ts`."
-
 
 
 def _derived_answers(
@@ -315,14 +258,17 @@ def _derived_answers(
         {
             "command_description": f"Run the {title_name} command.",
             "dev_dependencies": _dev_dependencies(answers),
-            "github_install_source": _github_install_source(answers),
+            "github_install_source": github_install_source(
+                repository_url,
+                fallback=str(answers.get("repo_name") or "pi-extension"),
+            ),
             "keywords": _package_keywords(answers),
-            "license_value": _license_value(answers),
+            "license_value": package_license_value(answers.get("copyright_license")),
             "package_dependencies": _package_dependencies(answers),
             "package_name_unscoped": _package_name_without_scope(package_name),
             "peer_dependencies": _peer_dependencies(answers),
             "pi_manifest_entries": _pi_manifest_entries(answers),
-            "repository_git_url": _repository_git_url(repository_url),
+            "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
             "starter_kind": starter_kind,
             "starter_readme": starter_readme,
@@ -376,14 +322,14 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             prompt="npm package name",
             help="Use the package name Pi should load from package.json.",
             default=default_package_name,
-            validators=[validate_package_name],
+            validators=[validate_npm_package_name],
         ),
         Question(
             key="repo_name",
             prompt="Repository name",
             help="Personal Pi extension repos usually start with pi-.",
             default=default_repo_name,
-            validators=[validate_repo_name],
+            validators=[validate_repository_name],
         ),
         Question(
             key="author_name",
@@ -432,7 +378,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             prompt="Pi dev dependency version",
             help="Keep this aligned with the locally installed Pi version used for docs and checks.",
             default=_installed_pi_version(),
-            validators=[validate_pi_version],
+            validators=[validate_semver],
         ),
         Question(
             key="copyright_license",
@@ -480,149 +426,11 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
     github_workflows = set(_string_sequence(answers.get("github_workflows")))
 
-    if relative_path == "LICENSE.jinja" and answers.get("copyright_license") == "None":
+    if should_skip_license_file(relative_path, dict(answers)):
         return True
     if relative_path.startswith(".github/") and "ci" not in github_workflows:
         return True
     return False
-
-
-def _ensure_git_repo(destination: Path, *, console: ConsoleLike) -> bool:
-    git_executable = shutil.which("git")
-    if git_executable is None:
-        console.print("[yellow]Git is not installed; skipping local repository initialization.[/yellow]")
-        return False
-
-    if (destination / ".git").exists():
-        return True
-
-    result = subprocess.run(
-        [git_executable, "init", "-b", "main"],
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
-        return True
-
-    fallback = subprocess.run(
-        [git_executable, "init"],
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if fallback.returncode == 0:
-        subprocess.run([git_executable, "branch", "-M", "main"], cwd=destination, check=False)
-        return True
-
-    details = fallback.stderr.strip() or result.stderr.strip() or "unknown error"
-    console.print(f"[yellow]Failed to initialize git repository: {details}[/yellow]")
-    return False
-
-
-def _has_git_commits(destination: Path, *, git_executable: str) -> bool:
-    result = subprocess.run(
-        [git_executable, "rev-parse", "--verify", "HEAD"],
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0
-
-
-def _create_initial_commit(destination: Path, answers: Mapping[str, object], *, console: ConsoleLike) -> bool:
-    git_executable = shutil.which("git")
-    if git_executable is None:
-        console.print("[yellow]Git is not installed; skipping initial commit.[/yellow]")
-        return False
-    if not _ensure_git_repo(destination, console=console):
-        return False
-
-    add_result = subprocess.run(
-        [git_executable, "add", "--all"],
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if add_result.returncode != 0:
-        details = add_result.stderr.strip() or add_result.stdout.strip() or "unknown error"
-        console.print(f"[yellow]Failed to stage files for initial commit: {details}[/yellow]")
-        return _has_git_commits(destination, git_executable=git_executable)
-
-    staged_diff_result = subprocess.run(
-        [git_executable, "diff", "--cached", "--quiet", "--exit-code"],
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if staged_diff_result.returncode == 0:
-        return _has_git_commits(destination, git_executable=git_executable)
-    if staged_diff_result.returncode != 1:
-        details = staged_diff_result.stderr.strip() or staged_diff_result.stdout.strip() or "unknown error"
-        console.print(f"[yellow]Failed to inspect staged changes: {details}[/yellow]")
-        return _has_git_commits(destination, git_executable=git_executable)
-
-    commit_command = [git_executable]
-    author_name = str(answers.get("author_name") or "").strip()
-    author_email = str(answers.get("author_email") or "").strip()
-    if author_name:
-        commit_command.extend(["-c", f"user.name={author_name}"])
-    if author_email:
-        commit_command.extend(["-c", f"user.email={author_email}"])
-    commit_command.extend(["commit", "-m", "chore: initialize pi extension"])
-
-    commit_result = subprocess.run(
-        commit_command,
-        cwd=destination,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if commit_result.returncode == 0:
-        return True
-
-    details = commit_result.stderr.strip() or commit_result.stdout.strip() or "unknown error"
-    console.print(f"[yellow]Failed to create initial commit: {details}[/yellow]")
-    return _has_git_commits(destination, git_executable=git_executable)
-
-
-def _create_github_repo(
-    destination: Path,
-    answers: Mapping[str, object],
-    *,
-    console: ConsoleLike,
-    push: bool,
-) -> None:
-    gh_executable = shutil.which("gh")
-    if gh_executable is None:
-        console.print("[yellow]GitHub CLI not found; skipping repository creation.[/yellow]")
-        return
-
-    visibility = str(answers.get("github_repo_visibility") or "private").strip().lower()
-    if visibility not in {"private", "public"}:
-        visibility = "private"
-
-    command = [gh_executable, "repo", "create", _github_repo_target(answers), f"--{visibility}"]
-    description = str(answers.get("description") or "").strip()
-    if description:
-        command.extend(["--description", description])
-
-    if _ensure_git_repo(destination, console=console):
-        command.extend(["--source", str(destination), "--remote", "origin"])
-        if push:
-            command.append("--push")
-
-    result = subprocess.run(command, cwd=destination, capture_output=True, text=True, check=False)
-    if result.returncode == 0:
-        return
-
-    details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-    console.print(f"[yellow]Failed to create GitHub repository: {details}[/yellow]")
 
 
 def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | None:
@@ -647,49 +455,40 @@ def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | N
     return None
 
 
-def title(destination: Path) -> str:
-    return f"Generating a Pi extension package in {destination}"
+def title(context: ManifestContext) -> str:
+    return f"Generating a Pi extension package in {context.destination}"
 
 
-def apply(
-    *,
-    env: Environment,
-    template_dir: Path,
-    destination: Path,
-    answers: dict[str, object],
-    console: ConsoleLike,
-    render_templates: RenderTemplatesFn = sprout_render_templates,
-) -> list[Path]:
-    render_answers = _derived_answers(env, destination, answers)
-    created = render_templates(
-        env,
-        template_dir,
-        destination,
+def apply(context: ManifestContext) -> list[Path]:
+    render_answers = _derived_answers(context.env, context.destination, context.answers)
+    created = sprout_render_templates(
+        context.env,
+        context.template_dir,
+        context.destination,
         render_answers,
         skip=should_skip_file,
         render_paths=True,
     )
 
     if bool(render_answers.get("create_package_lock")):
-        lockfile = _create_package_lock(destination, console=console)
+        lockfile = _create_package_lock(context.destination, console=sprout_console)
         if lockfile is not None:
-            created.append(lockfile.relative_to(destination))
+            created.append(lockfile.relative_to(context.destination))
 
-    if bool(render_answers.get("create_github_repo")):
-        if not _is_github_repo_url(render_answers.get("repository_url")):
-            console.print("[yellow]Repository URL is not a GitHub URL; gh will use the repo name.[/yellow]")
-        has_commits = _create_initial_commit(destination, render_answers, console=console)
-        _create_github_repo(destination, render_answers, console=console, push=has_commits)
-    elif bool(render_answers.get("git_init")):
-        _create_initial_commit(destination, render_answers, console=console)
+    run_git_post_actions(
+        context.destination,
+        render_answers,
+        console=sprout_console,
+        commit_message="chore: initialize pi extension",
+        fallback_repo_name="pi-extension",
+    )
 
     return created
 
 
-extensions: Sequence[type[Extension]] = (
+extensions = (
     GitDefaultsExtension,
     CurrentYearExtension,
-    PiTemplateExtension,
 )
 
 template_dir = "template"
