@@ -32,26 +32,10 @@ class ConsoleLike(Protocol):
     def print(self, message: object) -> None: ...
 
 
-STARTER_KIND_CHOICES = [
-    ("plain-command", "Plain slash command"),
-    ("typed-command", "Typed slash command"),
-    ("tool", "Model-callable tool"),
-    ("lifecycle", "Lifecycle hook"),
-]
-
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
-
-PI_BUNDLED_PACKAGES = {
-    "@earendil-works/pi-ai",
-    "@earendil-works/pi-agent-core",
-    "@earendil-works/pi-coding-agent",
-    "@earendil-works/pi-tui",
-    "typebox",
-}
-
 
 def _kebab_case(value: str, *, fallback: str) -> str:
     cleaned = re.sub(r"[^0-9a-zA-Z]+", "-", value).strip("-").lower()
@@ -60,16 +44,6 @@ def _kebab_case(value: str, *, fallback: str) -> str:
         return fallback
     if cleaned[0].isdigit():
         return f"pi-{cleaned}"
-    return cleaned
-
-
-def _snake_case(value: str, *, fallback: str) -> str:
-    cleaned = re.sub(r"[^0-9a-zA-Z]+", "_", value).strip("_").lower()
-    cleaned = re.sub(r"_+", "_", cleaned)
-    if not cleaned:
-        return fallback
-    if cleaned[0].isdigit():
-        return f"tool_{cleaned}"
     return cleaned
 
 
@@ -85,15 +59,6 @@ def _strip_pi_prefix(value: str) -> str:
 def _default_repo_name(destination: Path) -> str:
     repo = _kebab_case(destination.name, fallback="pi-extension")
     return repo if repo.startswith("pi-") else f"pi-{repo}"
-
-
-def _default_feature_name(answers: Mapping[str, object], destination: Path) -> str:
-    repo = str(answers.get("repo_name") or _default_repo_name(destination))
-    return _strip_pi_prefix(_kebab_case(repo, fallback="extension"))
-
-
-def _default_tool_name(answers: Mapping[str, object], destination: Path) -> str:
-    return _snake_case(_default_feature_name(answers, destination), fallback="starter_tool")
 
 
 def _default_repository_url(
@@ -120,20 +85,6 @@ def _installed_pi_version() -> str:
     return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.2"
 
 
-def validate_command_name(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
-    name = value.strip()
-    if not re.fullmatch(r"[a-z][a-z0-9-]*", name):
-        return False, "Command name must be lowercase kebab-case and start with a letter."
-    return True, None
-
-
-def validate_tool_name(value: str, _answers: Mapping[str, object]) -> tuple[bool, str | None]:
-    name = value.strip()
-    if not re.fullmatch(r"[a-z][a-z0-9_]*", name):
-        return False, "Tool name must be lowercase snake_case and start with a letter."
-    return True, None
-
-
 def _package_name_without_scope(name: str) -> str:
     return name.rsplit("/", maxsplit=1)[-1]
 
@@ -147,9 +98,7 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     return sorted(keywords)
 
 
-def _package_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    if answers.get("starter_kind") == "typed-command":
-        return [("pi-typed-commands", "file:../pi-command-args")]
+def _package_dependencies(_answers: Mapping[str, object]) -> list[tuple[str, str]]:
     return []
 
 
@@ -164,16 +113,11 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
         ("tsx", "^4.22.3"),
         ("typescript", "^6.0.3"),
     ]
-    if answers.get("starter_kind") == "tool":
-        dependencies.append(("typebox", "1.1.38"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
-def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    peers = {"@earendil-works/pi-coding-agent"}
-    if answers.get("starter_kind") == "tool":
-        peers.add("typebox")
-    return [(name, "*") for name in sorted(peers)]
+def _peer_dependencies(_answers: Mapping[str, object]) -> list[tuple[str, str]]:
+    return [("@earendil-works/pi-coding-agent", "*")]
 
 
 def _pi_manifest_entries(_answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
@@ -188,30 +132,6 @@ def _string_sequence(value: object) -> list[str]:
     return []
 
 
-def _starter_readme(*, starter_kind: str, command_name: str, tool_name: str) -> str:
-    if starter_kind == "plain-command":
-        return (
-            f"This template registers the `/{command_name}` slash command in `src/index.ts`.\n\n"
-            "```text\n"
-            f"/{command_name}\n"
-            f"/{command_name} optional arguments\n"
-            "```"
-        )
-    if starter_kind == "typed-command":
-        return (
-            f"This template registers the `/{command_name}` typed slash command in `src/index.ts` "
-            "using `pi-typed-commands`.\n\n"
-            "```text\n"
-            f"/{command_name} world --loud\n"
-            f"/{command_name} --help\n"
-            "```\n\n"
-            "The generated `package.json` expects the typed-command helper at "
-            "`../pi-command-args` for local private development."
-        )
-    if starter_kind == "tool":
-        return f"This template registers the `{tool_name}` model-callable tool in `src/index.ts`."
-    return "This template registers starter `session_start` and `session_shutdown` lifecycle hooks in `src/index.ts`."
-
 
 def _derived_answers(
     env: Environment,
@@ -220,35 +140,16 @@ def _derived_answers(
 ) -> dict[str, object]:
     package_name = str(answers["package_name"])
     repo_name = str(answers["repo_name"])
-    feature_name = _strip_pi_prefix(repo_name)
-    command_name = str(answers.get("command_name") or feature_name)
-    tool_name = str(answers.get("tool_name") or _snake_case(feature_name, fallback="starter_tool"))
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
-    starter_kind = str(answers["starter_kind"])
-
-    starter_readme = _starter_readme(
-        starter_kind=starter_kind,
-        command_name=command_name,
-        tool_name=tool_name,
-    )
     test_expected_exports: list[tuple[str, str]] = [
         ("packageName", package_name),
         ("extensionName", title_name),
-        ("starterKind", starter_kind),
     ]
-    test_import_names = ["extensionName", "packageName", "starterKind"]
-    if starter_kind in {"plain-command", "typed-command"}:
-        test_import_names.insert(0, "commandName")
-        test_expected_exports.append(("commandName", command_name))
-    if starter_kind == "tool":
-        test_import_names.append("toolName")
-        test_expected_exports.append(("toolName", tool_name))
 
     result: dict[str, object] = dict(answers)
     result.update(
         {
-            "command_description": f"Run the {title_name} command.",
             "dev_dependencies": _dev_dependencies(answers),
             "github_install_source": github_install_source(
                 repository_url,
@@ -262,18 +163,11 @@ def _derived_answers(
             "pi_manifest_entries": _pi_manifest_entries(answers),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
-            "starter_kind": starter_kind,
-            "starter_readme": starter_readme,
             "test_expected_exports": test_expected_exports,
-            "test_import_names": test_import_names,
+            "test_import_names": ["extensionName", "packageName"],
             "title_name": title_name,
-            "tool_description": f"Run the {title_name} starter tool.",
-            "tool_label": _title_case(tool_name),
-            "tool_name": tool_name,
-            "tool_type_name": _title_case(tool_name).replace(" ", ""),
         }
     )
-    result.setdefault("command_name", command_name)
     result.setdefault("github_workflows", [])
     result.setdefault("author_name", str(env.globals.get("git_user_name") or "zigai"))
     result.setdefault("destination_path", str(destination))
@@ -301,12 +195,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 
     def default_repository_url(answers: Mapping[str, object]) -> str:
         return _default_repository_url(env, answers, destination)
-
-    def default_command_name(answers: Mapping[str, object]) -> str:
-        return _default_feature_name(answers, destination)
-
-    def default_tool_name(answers: Mapping[str, object]) -> str:
-        return _default_tool_name(answers, destination)
 
     return [
         Question(
@@ -344,26 +232,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             prompt="Repository URL",
             default=default_repository_url,
             validators=[validate_repository_url],
-        ),
-        Question(
-            key="starter_kind",
-            prompt="Starter extension shape",
-            choices=STARTER_KIND_CHOICES,
-            default="plain-command",
-        ),
-        Question(
-            key="command_name",
-            prompt="Slash command name",
-            default=default_command_name,
-            validators=[validate_command_name],
-            when=lambda answers: answers.get("starter_kind") in {"plain-command", "typed-command"},
-        ),
-        Question(
-            key="tool_name",
-            prompt="Tool name",
-            default=default_tool_name,
-            validators=[validate_tool_name],
-            when=lambda answers: answers.get("starter_kind") == "tool",
         ),
         Question(
             key="pi_version",
