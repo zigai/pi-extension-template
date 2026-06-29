@@ -14,5 +14,5 @@
 - Custom tools must truncate large output and tell the model where any full output was saved.
 - Use `StringEnum` from `@earendil-works/pi-ai` for model-facing string enums instead of `Type.Union` of literals.
 - Use `ctx.mode === "tui"` before terminal-only UI work and `ctx.hasUI` before dialogs/notifications.
-- Validate changes with `just lint` and `just test` before handing off.
+- Validate changes with `just check` before handing off; use `just coverage` when coverage output is needed.
 - For visual/TUI changes, verify in a real tmux/TTY session instead of only relying on snapshots or non-interactive output.

@@ -21,7 +21,7 @@ sprout zigai/pi-project-template /home/zigai/Projects/pi-example
   - The typed-command starter uses `pi-typed-commands` from the sibling `/home/zigai/Projects/pi-command-args` checkout.
 - Strict TypeScript, oxlint, oxfmt, and Node test setup
 - `README.md` matching the personal Pi extension README shape
-- `Justfile` recipes: `fmt`, `lint`, `test`, and `fix`
+- `Justfile` recipes: `fmt`, `lint`, `test`, `check`, `coverage`, `fix`, and `cov`
 - Optional private GitHub repository creation through `gh repo create`
 
 ## Development
