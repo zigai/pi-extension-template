@@ -10,7 +10,7 @@ My personal template for Pi extension package repositories.
 * **Just recipes** with [just](https://github.com/casey/just) for checking, coverage, testing, linting, formatting, and fixing
 * **Testing setup** with Node's built-in test runner, `tsx`, and coverage output
 * **Optional GitHub Actions workflow** for CI
-* **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/)
+* **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/) with Pi repository topics
 * **License selection** for the shared SPDX license set used by the Python template
 * **Generated `README.md`** with Pi install instructions and local package setup notes
 * **Generated `AGENTS.md`** with Pi extension workflow guidance

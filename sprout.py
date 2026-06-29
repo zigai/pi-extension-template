@@ -14,6 +14,7 @@ from sprout.cli import render_templates as sprout_render_templates
 from sprout.project import (
     SPDX_LICENSE_CHOICES,
     github_install_source,
+    github_repository_target,
     github_repository_url,
     package_license_value,
     repository_git_url,
@@ -39,6 +40,7 @@ STARTER_KIND_CHOICES = [
 ]
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
+GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
@@ -139,15 +141,10 @@ def _package_name_without_scope(name: str) -> str:
 def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     repo_name = str(answers["repo_name"])
     feature = _strip_pi_prefix(repo_name)
-    keywords = [
-        "pi",
-        "pi-coding-agent",
-        "pi-extension",
-        "pi-package",
-    ]
+    keywords = [*GITHUB_REPO_TOPICS, "pi-package"]
     if feature and feature not in keywords:
         keywords.append(feature)
-    return keywords
+    return sorted(keywords)
 
 
 def _package_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
@@ -429,6 +426,40 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
     return False
 
 
+def _add_github_repo_topics(
+    destination: Path,
+    answers: Mapping[str, object],
+    *,
+    console: ConsoleLike,
+) -> None:
+    gh_executable = shutil.which("gh")
+    if gh_executable is None:
+        console.print("[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]")
+        return
+
+    command = [
+        gh_executable,
+        "repo",
+        "edit",
+        github_repository_target(answers, fallback_repo_name="pi-extension"),
+    ]
+    for topic in GITHUB_REPO_TOPICS:
+        command.extend(["--add-topic", topic])
+
+    result = subprocess.run(
+        command,
+        cwd=destination,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return
+
+    details = result.stderr.strip() or result.stdout.strip() or "unknown error"
+    console.print(f"[yellow]Failed to add GitHub repository topics: {details}[/yellow]")
+
+
 def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | None:
     npm_executable = shutil.which("npm")
     if npm_executable is None:
@@ -471,13 +502,19 @@ def apply(context: ManifestContext) -> list[Path]:
         if lockfile is not None:
             created.append(lockfile.relative_to(context.destination))
 
-    run_git_post_actions(
+    git_result = run_git_post_actions(
         context.destination,
         render_answers,
         console=sprout_console,
         commit_message="chore: initialize pi extension",
         fallback_repo_name="pi-extension",
     )
+    if git_result.github_repository_created:
+        _add_github_repo_topics(
+            context.destination,
+            render_answers,
+            console=sprout_console,
+        )
 
     return created
 
