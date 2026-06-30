@@ -30,8 +30,8 @@
     "lint:fix": "oxlint -c ./.oxlintrc.json . --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "test": "node --import tsx --test test/*.test.ts",
-    "coverage": "node --experimental-test-coverage --import tsx --test test/*.test.ts",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test",
     "verify": "npm run check"

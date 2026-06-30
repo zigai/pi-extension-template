@@ -107,11 +107,12 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     dependencies = [
         ("@earendil-works/pi-coding-agent", f"^{pi_version}"),
         ("@types/node", "^24.10.1"),
+        ("@vitest/coverage-v8", "^4.1.9"),
         ("oxfmt", "^0.44.0"),
         ("oxlint", "^1.59.0"),
         ("oxlint-tsgolint", "^0.23.0"),
-        ("tsx", "^4.22.3"),
         ("typescript", "^6.0.3"),
+        ("vitest", "^4.1.9"),
     ]
     return sorted(dependencies, key=lambda item: item[0])
 
