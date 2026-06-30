@@ -8,7 +8,7 @@ My personal template for Pi extension package repositories.
 * **Empty extension entrypoint** ready for custom Pi extension behavior
 * **Strict TypeScript tooling** with `tsconfig.json`, [oxlint](https://oxc.rs/docs/guide/usage/linter.html), and [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
 * **Just recipes** with [just](https://github.com/casey/just) for checking, coverage, testing, linting, formatting, and fixing
-* **Testing setup** with Node's built-in test runner, `tsx`, and coverage output
+* **Testing setup** with Vitest and coverage output
 * **Optional GitHub Actions workflow** for CI
 * **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/) with Pi repository topics
 * **License selection** for the shared SPDX license set used by the Python template
