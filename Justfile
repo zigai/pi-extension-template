@@ -23,6 +23,7 @@ test:
     grep -q '"license": "BSD-3-Clause"' .tmp/pi-template-smoke/package.json
     python -c 'import json; from pathlib import Path; data = json.loads(Path(".tmp/pi-template-smoke/package.json").read_text()); keywords = set(data["keywords"]); assert {"pi", "pi-coding-agent", "pi-extension"} <= keywords'
     grep -q 'export default function extension(_pi: ExtensionAPI): void' .tmp/pi-template-smoke/src/index.ts
+    test -f .tmp/pi-template-smoke/test/index.test.ts && test ! -s .tmp/pi-template-smoke/test/index.test.ts
     ! grep -q 'registerCommand\|registerTool\|starterKind\|session_start' .tmp/pi-template-smoke/src/index.ts
     rm -rf .tmp/pi-template-topic-gh .tmp/fake-gh-bin .tmp/gh-calls
     python -c 'from pathlib import Path; root = Path.cwd(); bin_dir = root / ".tmp/fake-gh-bin"; bin_dir.mkdir(parents=True, exist_ok=True); calls = root / ".tmp/gh-calls"; gh = bin_dir / "gh"; gh.write_text("#!/bin/sh\necho \"$*\" >> " + str(calls) + "\nexit 0\n"); gh.chmod(0o755)'
