@@ -37,6 +37,7 @@ GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
+
 def _kebab_case(value: str, *, fallback: str) -> str:
     cleaned = re.sub(r"[^0-9a-zA-Z]+", "-", value).strip("-").lower()
     cleaned = re.sub(r"-+", "-", cleaned)
@@ -183,11 +184,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         package_name = str(answers.get("package_name") or suggested_repo)
         return _kebab_case(_package_name_without_scope(package_name), fallback=suggested_repo)
 
-    def default_description(answers: Mapping[str, object]) -> str:
-        repo_name = str(answers.get("repo_name") or suggested_repo)
-        feature = _strip_pi_prefix(repo_name).replace("-", " ")
-        return f"Pi extension for {feature}."
-
     def default_repository_url(answers: Mapping[str, object]) -> str:
         return _default_repository_url(env, answers, destination)
 
@@ -219,7 +215,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         Question(
             key="description",
             prompt="Package description",
-            default=default_description,
+            default="",
             parser=lambda value, _answers: value.strip(),
         ),
         Question(
