@@ -262,7 +262,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         ),
         Question.yes_no(
             key="create_github_repo",
-            prompt="Create private GitHub repository now?",
+            prompt="Create GitHub repository now?",
             help_text="Uses gh repo create after rendering and pushes the initial commit.",
             default=True,
             when=gh_available,
