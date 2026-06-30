@@ -142,10 +142,6 @@ def _derived_answers(
     repo_name = str(answers["repo_name"])
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
-    test_expected_exports: list[tuple[str, str]] = [
-        ("packageName", package_name),
-        ("extensionName", title_name),
-    ]
 
     result: dict[str, object] = dict(answers)
     result.update(
@@ -163,8 +159,6 @@ def _derived_answers(
             "pi_manifest_entries": _pi_manifest_entries(answers),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
-            "test_expected_exports": test_expected_exports,
-            "test_import_names": ["extensionName", "packageName"],
             "title_name": title_name,
         }
     )
