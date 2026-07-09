@@ -86,6 +86,25 @@ def _installed_pi_version() -> str:
     return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.2"
 
 
+def _git_config_value(key: str) -> str:
+    git_executable = shutil.which("git")
+    if git_executable is None:
+        return ""
+
+    try:
+        result = subprocess.run(
+            [git_executable, "config", "--get", key],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
 def _package_name_without_scope(name: str) -> str:
     return name.rsplit("/", maxsplit=1)[-1]
 
@@ -171,8 +190,8 @@ def _derived_answers(
 
 
 def questions(env: Environment, destination: Path) -> list[Question]:
-    git_user_name = str(env.globals.get("git_user_name") or "")
-    git_user_email = str(env.globals.get("git_user_email") or "")
+    git_user_name = str(env.globals.get("git_user_name") or _git_config_value("user.name"))
+    git_user_email = str(env.globals.get("git_user_email") or _git_config_value("user.email"))
     gh_available = shutil.which("gh") is not None
     npm_available = shutil.which("npm") is not None
     suggested_repo = _default_repo_name(destination)
@@ -210,7 +229,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         Question(
             key="author_email",
             prompt="Author email",
-            default=git_user_email or None,
+            default=git_user_email or "",
         ),
         Question(
             key="description",
