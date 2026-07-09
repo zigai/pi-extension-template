@@ -385,6 +385,7 @@ def apply(context: ManifestContext) -> list[Path]:
         console=sprout_console,
         commit_message="chore: initialize pi extension",
         fallback_repo_name="pi-extension",
+        initial_branch="master",
     )
     if git_result.github_repository_created:
         _add_github_repo_topics(
