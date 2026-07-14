@@ -1,8 +1,5 @@
 import { defineExtensionSettings } from "@zigai/pi-extension-settings";
-import {
-    loadPiExtensionSettingsSync,
-    type PiSettingsContext,
-} from "@zigai/pi-extension-settings/pi";
+import { loadPiExtensionSettings, type PiSettingsContext } from "@zigai/pi-extension-settings/pi";
 import { Type, type Static } from "typebox";
 
 const settingsSchema = Type.Object(
@@ -31,7 +28,7 @@ export const extensionSettingsDefinition = defineExtensionSettings({
 });
 
 export function {{ settings_loader_name }}(ctx: PiSettingsContext) {
-    return loadPiExtensionSettingsSync(extensionSettingsDefinition, ctx, {
+    return loadPiExtensionSettings(extensionSettingsDefinition, ctx, {
         bundledSchema: {
             kind: "url",
             url: new URL("../config.schema.json", import.meta.url),

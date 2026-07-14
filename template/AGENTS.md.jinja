@@ -17,7 +17,7 @@ Only add extension-owned settings when the extension needs user-configurable beh
 - Use “settings” for the extension capability and source module; reserve “config” for concrete persisted-file concepts such as config paths and `config.schema.json`. Do not create a one-file `src/config/` directory or a parallel `config.ts`; split `settings.ts` only when a substantial domain capability earns its own specifically named module.
 - Register `src/settings.ts`, `config.schema.json`, and the README in the package's `piExtensionSettings` manifest field.
 - Expose the package-facing loader as `load<ExtensionName>Settings`, such as `loadExampleSettings`. This function owns the shared loader call and returns the extension's typed, resolved settings; ordinary extension code should call it rather than the definition or shared adapter directly.
-- Implement that loader with `loadPiExtensionSettings` or `loadPiExtensionSettingsSync`. These adapters use `getAgentDir()` and `CONFIG_DIR_NAME`; never hardcode `~/.pi/agent` or `.pi` in runtime code.
+- Implement that loader with `loadPiExtensionSettings`. It uses `getAgentDir()` and `CONFIG_DIR_NAME`; never hardcode `~/.pi/agent` or `.pi` in runtime code.
 - Global settings live at `getAgentDir()/extension-settings/{{ repo_name }}.json`; editor schemas live at `getAgentDir()/extension-settings/schemas/{{ repo_name }}.schema.json`.
 - Trusted project overrides live at `ctx.cwd/CONFIG_DIR_NAME/extension-settings/{{ repo_name }}.json`. Never read project settings for an untrusted project or create project settings automatically.
 - Parse settings at the boundary: `JSON.parse` to `unknown`, validate/decode with TypeBox, then pass typed settings inward. Never cast `JSON.parse` output to settings types or scatter hand-written shape checks.
@@ -25,7 +25,7 @@ Only add extension-owned settings when the extension needs user-configurable beh
 - The shared loader may scaffold default global settings only when missing, never overwrite existing or malformed user settings, and refresh missing or stale installed schemas from the checked-in bundled schema.
 - Use environment variables only for secrets, CI/session overrides, or explicit settings-path overrides, not normal persisted options.
 - Keep secrets out of ordinary JSON settings unless the extension deliberately designs secure storage and permissions.
-- Keep lifecycle, migration, trust, and malformed-file policy in `AGENTS.md` and tests, not in generated README documentation.
+- Keep lifecycle, trust, and malformed-file policy in `AGENTS.md` and tests, not in generated README documentation.
 
 ## README Settings Documentation
 
@@ -34,7 +34,7 @@ Only extensions with meaningful user-facing settings should declare `piExtension
 - Put `<!-- pi-extension-settings:start -->` and `<!-- pi-extension-settings:end -->` in the README exactly once.
 - Do not hand-edit content between those markers. The shared generator owns the settings path, option table, and complete default JSON document.
 - Put user-facing descriptions on TypeBox properties in `src/settings.ts`; wording changes flow into README documentation through generation.
-- Do not document alternate paths, layering, TypeBox mechanics, schema refresh, trust, migration, user-owned terminology, or malformed-file policy in the generated region.
+- Do not document alternate paths, layering, TypeBox mechanics, schema refresh, trust, user-owned terminology, or malformed-file policy in the generated region.
 
 ## Implementation Notes
 
