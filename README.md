@@ -8,7 +8,7 @@ My personal template for Pi extension package repositories.
 * **Empty extension entrypoint** ready for custom Pi extension behavior
 * **Optional extension-settings scaffold** with a flat `src/settings.ts`, TypeBox source of truth, generated schema/README documentation, pre-commit and CI checks, and a vendored private `@zigai/pi-extension-settings` runtime
 * **Strict TypeScript tooling** with `tsconfig.json`, [oxlint](https://oxc.rs/docs/guide/usage/linter.html), and [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
-* **Just recipes** with [just](https://github.com/casey/just) for checking, coverage, testing, linting, formatting, and fixing
+* **Just recipes** with [just](https://github.com/casey/just) for setup, checking, coverage, testing, linting, formatting, and fixing
 * **Testing setup** with Vitest and coverage output
 * **Optional GitHub Actions workflow** for CI
 * **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/) with Pi repository topics
@@ -21,6 +21,7 @@ My personal template for Pi extension package repositories.
 * Node.js 22.19+
 * npm
 * [sprout](https://github.com/zigai/sprout)
+* [pre-commit](https://pre-commit.com/)
 * Git
 * [GitHub CLI](https://cli.github.com/) (optional)
 

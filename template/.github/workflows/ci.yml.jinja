@@ -6,21 +6,26 @@ on:
     branches:
       - master
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 24
+{% if create_package_lock %}
           cache: npm
-
+{% endif %}
       - name: Install dependencies
-        run: npm install
+        run: {% if create_package_lock %}npm ci{% else %}npm install{% endif %}
 
       - name: Check
         run: npm run check
