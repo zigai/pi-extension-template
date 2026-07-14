@@ -6,7 +6,7 @@ My personal template for Pi extension package repositories.
 
 * **Pi extension package setup** with package metadata and an explicit `pi` manifest
 * **Empty extension entrypoint** ready for custom Pi extension behavior
-* **Optional extension-settings scaffold** with a flat `src/settings.ts`, TypeBox source of truth, generated schema/README documentation, pre-commit and CI checks, and a vendored `@zigai/pi-extension-settings` runtime
+* **Optional extension-settings scaffold** with a flat `src/settings.ts`, TypeBox source of truth, generated schema/README documentation, pre-commit and CI checks, and the `@zigai/pi-extension-settings` runtime
 * **Strict TypeScript tooling** with `tsconfig.json`, [oxlint](https://oxc.rs/docs/guide/usage/linter.html), and [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
 * **Just recipes** with [just](https://github.com/casey/just) for setup, checking, coverage, testing, linting, formatting, and fixing
 * **Testing setup** with Vitest and coverage output
@@ -39,7 +39,7 @@ The template can also be invoked directly:
 sprout "https://github.com/zigai/pi-extension-template.git" /path/to/your/project
 ```
 
-Until `@zigai/pi-extension-settings` is published to npm, selecting extension settings uses its public repository checkout at `~/Projects/pi-extension-settings`. The generated project receives a versioned vendor tarball and remains independently installable.
+Selecting extension settings adds the published `@zigai/pi-extension-settings` package and configures the generated project to bundle it for independent installation.
 
 ## Generated Project Structure
 
@@ -56,7 +56,6 @@ your-project/
 ├── .oxlintrc.json
 ├── .pre-commit-config.yaml
 ├── config.schema.json          # optional generated settings schema
-├── vendor/                     # optional settings runtime
 ├── tsconfig.json
 ├── package.json                # includes the Pi manifest
 ├── package-lock.json           # optional when requested

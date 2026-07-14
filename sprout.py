@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import subprocess
@@ -35,7 +34,7 @@ class ConsoleLike(Protocol):
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
-EXTENSION_SETTINGS_PACKAGE_PATH = Path.home() / "Projects" / "pi-extension-settings"
+EXTENSION_SETTINGS_PACKAGE_VERSION = "0.1.2"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
@@ -111,27 +110,6 @@ def _package_name_without_scope(name: str) -> str:
     return name.rsplit("/", maxsplit=1)[-1]
 
 
-def _extension_settings_package_version() -> str:
-    manifest_path = EXTENSION_SETTINGS_PACKAGE_PATH / "package.json"
-    try:
-        parsed = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as e:
-        raise RuntimeError(
-            f"Cannot read the extension settings package manifest at {manifest_path}"
-        ) from e
-
-    if not isinstance(parsed, dict):
-        raise RuntimeError(
-            f"Extension settings package manifest is not an object: {manifest_path}"
-        )
-    version = parsed.get("version")
-    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
-        raise RuntimeError(
-            f"Extension settings package has an invalid version: {manifest_path}"
-        )
-    return version
-
-
 def _settings_loader_name(repo_name: str) -> str:
     feature_name = _title_case(_strip_pi_prefix(repo_name)).replace(" ", "")
     return f"load{feature_name or 'Extension'}Settings"
@@ -159,9 +137,7 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
 def _package_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     if not bool(answers.get("extension_settings")):
         return []
-    version = str(answers["extension_settings_version"])
-    filename = f"zigai-pi-extension-settings-{version}.tgz"
-    return [("@zigai/pi-extension-settings", f"file:vendor/{filename}")]
+    return [("@zigai/pi-extension-settings", EXTENSION_SETTINGS_PACKAGE_VERSION)]
 
 
 def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
@@ -215,9 +191,6 @@ def _derived_answers(
     result.update(
         {
             "extension_settings": extension_settings,
-            "extension_settings_version": (
-                _extension_settings_package_version() if extension_settings else ""
-            ),
             "settings_loader_name": _settings_loader_name(repo_name),
             "settings_schema_id": _settings_schema_id(repository_url),
         }
@@ -418,40 +391,6 @@ def _add_github_repo_topics(
     console.print(f"[yellow]Failed to add GitHub repository topics: {details}[/yellow]")
 
 
-def _vendor_extension_settings(
-    destination: Path,
-    version: str,
-    *,
-    console: ConsoleLike,
-) -> Path:
-    npm_executable = shutil.which("npm")
-    if npm_executable is None:
-        raise RuntimeError("npm is required to vendor @zigai/pi-extension-settings")
-
-    vendor_directory = destination / "vendor"
-    vendor_directory.mkdir(parents=True, exist_ok=True)
-    filename = f"zigai-pi-extension-settings-{version}.tgz"
-    tarball = vendor_directory / filename
-    result = subprocess.run(
-        [
-            npm_executable,
-            "pack",
-            str(EXTENSION_SETTINGS_PACKAGE_PATH),
-            "--pack-destination",
-            str(vendor_directory),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0 or not tarball.is_file():
-        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-        raise RuntimeError(f"Failed to vendor @zigai/pi-extension-settings: {details}")
-
-    console.print(f"[green]Vendored @zigai/pi-extension-settings {version}.[/green]")
-    return tarball.relative_to(destination)
-
-
 def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | None:
     npm_executable = shutil.which("npm")
     if npm_executable is None:
@@ -490,14 +429,6 @@ def apply(context: ManifestContext) -> list[Path]:
         skip=should_skip_file,
         render_paths=True,
     )
-
-    if bool(render_answers.get("extension_settings")):
-        vendor_tarball = _vendor_extension_settings(
-            context.destination,
-            str(render_answers["extension_settings_version"]),
-            console=sprout_console,
-        )
-        created.append(vendor_tarball)
 
     if bool(render_answers.get("create_package_lock")):
         lockfile = _create_package_lock(context.destination, console=sprout_console)

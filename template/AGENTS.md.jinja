@@ -12,7 +12,7 @@
 
 Only add extension-owned settings when the extension needs user-configurable behavior. Extensions that work from defaults or Pi context do not need settings files or the shared settings dependency.
 
-- Use `@zigai/pi-extension-settings` for extension-owned JSON settings. Bundle it in the published extension when it is not available from the public npm registry.
+- Use `@zigai/pi-extension-settings` for extension-owned JSON settings. The template bundles it so published extensions remain independently installable.
 - Keep the TypeBox source of truth and runtime settings boundary together in a flat `src/settings.ts` module using `defineExtensionSettings`.
 - Use “settings” for the extension capability and source module; reserve “config” for concrete persisted-file concepts such as config paths and `config.schema.json`. Do not create a one-file `src/config/` directory or a parallel `config.ts`; split `settings.ts` only when a substantial domain capability earns its own specifically named module.
 - Register `src/settings.ts`, `config.schema.json`, and the README in the package's `piExtensionSettings` manifest field.
