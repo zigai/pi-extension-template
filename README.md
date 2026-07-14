@@ -1,4 +1,4 @@
-# Pi Project Template
+# Pi Extension Template
 
 My personal template for Pi extension package repositories.
 
@@ -6,6 +6,7 @@ My personal template for Pi extension package repositories.
 
 * **Pi extension package setup** with package metadata and an explicit `pi` manifest
 * **Empty extension entrypoint** ready for custom Pi extension behavior
+* **Optional extension-settings scaffold** with a flat `src/settings.ts`, TypeBox source of truth, generated schema/README documentation, pre-commit and CI checks, and a vendored private `@zigai/pi-extension-settings` runtime
 * **Strict TypeScript tooling** with `tsconfig.json`, [oxlint](https://oxc.rs/docs/guide/usage/linter.html), and [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
 * **Just recipes** with [just](https://github.com/casey/just) for checking, coverage, testing, linting, formatting, and fixing
 * **Testing setup** with Vitest and coverage output
@@ -25,22 +26,36 @@ My personal template for Pi extension package repositories.
 
 ## Usage
 
+Use the local project command:
+
 ```bash
-sprout "https://github.com/zigai/pi-project-template.git" /path/to/your/project
+new pi /path/to/your/project
 ```
+
+The template can also be invoked directly:
+
+```bash
+sprout "https://github.com/zigai/pi-extension-template.git" /path/to/your/project
+```
+
+Selecting extension settings requires the private `pi-extension-settings` repository at `~/Projects/pi-extension-settings`; the generated project receives a versioned vendor tarball and remains independently installable.
 
 ## Generated Project Structure
 
 ```text
 your-project/
 ├── src/
-│   └── index.ts
+│   ├── index.ts
+│   └── settings.ts             # optional settings scaffold
 ├── test/
 │   └── index.test.ts
 ├── .github/workflows/          # optional CI workflow
 ├── .editorconfig
 ├── .oxfmtrc.json
 ├── .oxlintrc.json
+├── .pre-commit-config.yaml
+├── config.schema.json          # optional generated settings schema
+├── vendor/                     # optional private settings runtime
 ├── tsconfig.json
 ├── package.json                # includes the Pi manifest
 ├── package-lock.json           # optional when requested
@@ -53,4 +68,4 @@ your-project/
 
 ## License
 
-[MIT](https://github.com/zigai/pi-project-template/blob/master/LICENSE)
+[MIT](https://github.com/zigai/pi-extension-template/blob/master/LICENSE)

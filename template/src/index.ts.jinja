@@ -1,5 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-
+{% if extension_settings %}
+import { {{ settings_loader_name }} } from "./settings.ts";
+{% endif %}
 /** Package display name used in user-visible extension messages. */
 export const extensionName = {{ title_name|tojson }};
 
@@ -7,4 +9,15 @@ export const extensionName = {{ title_name|tojson }};
 export const packageName = {{ package_name|tojson }};
 
 /** Register the {{ title_name }} Pi extension. */
+{% if extension_settings %}
+export default function extension(pi: ExtensionAPI): void {
+    pi.on("session_start", (_event, ctx) => {
+        const loaded = {{ settings_loader_name }}(ctx);
+        for (const diagnostic of loaded.diagnostics) {
+            ctx.ui.notify(diagnostic.message, diagnostic.severity);
+        }
+    });
+}
+{% else %}
 export default function extension(_pi: ExtensionAPI): void {}
+{% endif -%}

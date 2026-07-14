@@ -9,6 +9,15 @@ help:
 fmt:
     npm run format
 
+{% if extension_settings %}
+# Generate config schema and README settings documentation
+config-generate:
+    npm run config:generate
+
+# Check generated settings artifacts
+config-check:
+    npm run config:check
+{% endif %}
 # Check code for lint issues
 lint:
     npm run lint

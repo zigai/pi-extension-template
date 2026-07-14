@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": {{ settings_schema_id|tojson }},
+  "title": {{ (title_name ~ " settings")|tojson }},
+  "description": {{ ("Settings for " ~ title_name ~ ".")|tojson }},
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "default": {{ ("./schemas/" ~ repo_name ~ ".schema.json")|tojson }},
+      "description": "JSON Schema used by editors for this settings file."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable the extension."
+    }
+  }
+}

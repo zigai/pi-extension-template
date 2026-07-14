@@ -8,46 +8,33 @@
 - Keep Pi-bundled imports (`@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, and `typebox`) in `peerDependencies` with `"*"` and in `devDependencies` only for local typechecking.
 - Put the package description in the top-level `package.json` `description` field. Pi does not have extension-level description metadata.
 
-## Extension Configuration
+## Extension Settings
 
-Only add extension configuration when the extension needs user-configurable behavior. Extensions that work from defaults or Pi context do not need config files.
+Only add extension-owned settings when the extension needs user-configurable behavior. Extensions that work from defaults or Pi context do not need settings files or the shared settings dependency.
 
-- Do not store extension runtime settings in Pi's core `settings.json`; it is for Pi runtime, package, and resource loading.
-- If config is needed, use extension-owned JSON at `getAgentDir()/{{ repo_name }}/config.json` for global settings and trusted project overrides at `ctx.cwd/CONFIG_DIR_NAME/{{ repo_name }}/config.json`.
-- Import and use `getAgentDir()` and `CONFIG_DIR_NAME` from `@earendil-works/pi-coding-agent`; do not hardcode `~/.pi/agent` or `.pi` in code.
-- Use JSON only for persisted extension config.
-- Define the config schema with TypeBox. At the file boundary, `JSON.parse` file contents to `unknown`, validate/decode with TypeBox, and pass typed config inward.
-- Do not cast `JSON.parse` output to a config type or scatter ad hoc shape checks throughout the extension.
-- Keep a checked-in `config.schema.json` in the repo and update it whenever the TypeBox schema or default config changes.
-- Add `"$schema": "./config.schema.json"` to scaffolded config files so editors resolve the local schema copy.
-- Treat `config.json` as user-owned. Scaffold the default global config only when it is missing; never overwrite existing or malformed user config.
-- Treat `config.schema.json` as extension-owned. Copy/write it from the installed extension when it is missing or stale, using an atomic or otherwise safe write where practical.
-- Report a clear warning/error for malformed user config and fall back safely or abort setup depending on the operation.
-- Use environment variables only for secrets, CI/session overrides, or explicit config-path overrides, not normal persisted options.
-- Keep secrets out of ordinary JSON config unless the extension deliberately designs secure storage and permissions.
-- Keep lifecycle and implementation policy in `AGENTS.md` and tests, not in `README.md`.
+- Use `@zigai/pi-extension-settings` for extension-owned JSON settings. Bundle it in the published extension when it is not available from the public npm registry.
+- Keep the TypeBox source of truth and runtime settings boundary together in a flat `src/settings.ts` module using `defineExtensionSettings`.
+- Use “settings” for the extension capability and source module; reserve “config” for concrete persisted-file concepts such as config paths and `config.schema.json`. Do not create a one-file `src/config/` directory or a parallel `config.ts`; split `settings.ts` only when a substantial domain capability earns its own specifically named module.
+- Register `src/settings.ts`, `config.schema.json`, and the README in the package's `piExtensionSettings` manifest field.
+- Expose the package-facing loader as `load<ExtensionName>Settings`, such as `loadExampleSettings`. This function owns the shared loader call and returns the extension's typed, resolved settings; ordinary extension code should call it rather than the definition or shared adapter directly.
+- Implement that loader with `loadPiExtensionSettings` or `loadPiExtensionSettingsSync`. These adapters use `getAgentDir()` and `CONFIG_DIR_NAME`; never hardcode `~/.pi/agent` or `.pi` in runtime code.
+- Global settings live at `getAgentDir()/extension-settings/{{ repo_name }}.json`; editor schemas live at `getAgentDir()/extension-settings/schemas/{{ repo_name }}.schema.json`.
+- Trusted project overrides live at `ctx.cwd/CONFIG_DIR_NAME/extension-settings/{{ repo_name }}.json`. Never read project settings for an untrusted project or create project settings automatically.
+- Parse settings at the boundary: `JSON.parse` to `unknown`, validate/decode with TypeBox, then pass typed settings inward. Never cast `JSON.parse` output to settings types or scatter hand-written shape checks.
+- Run the shared generator after changing the TypeBox definition. Check in `config.schema.json` and the generated README region; pre-commit and CI must run the shared artifact check.
+- The shared loader may scaffold default global settings only when missing, never overwrite existing or malformed user settings, and refresh missing or stale installed schemas from the checked-in bundled schema.
+- Use environment variables only for secrets, CI/session overrides, or explicit settings-path overrides, not normal persisted options.
+- Keep secrets out of ordinary JSON settings unless the extension deliberately designs secure storage and permissions.
+- Keep lifecycle, migration, trust, and malformed-file policy in `AGENTS.md` and tests, not in generated README documentation.
 
-## README Configuration Documentation
+## README Settings Documentation
 
-README config docs should be minimal, user-facing, and focused on usable settings rather than internal implementation policy. Only include a Configuration or Settings section if the extension has meaningful user-facing settings.
+Only extensions with meaningful user-facing settings should declare `piExtensionSettings` and include a generated region.
 
-Use this structure for README configuration or settings docs:
-
-1. Start with one short sentence documenting the global config path with user-facing wording: `~/.pi/agent/{{ repo_name }}/config.json`.
-2. Add a compact option table with columns such as Option, Type, Default, and Description for each user-facing setting. List actual user-editable keys, preferably dot paths like `tools.webSearch`; avoid vague category rows such as `tools`, `openai`, or `appearance` unless that object is edited as a single meaningful value.
-3. Include one JSON block showing the full default config. Every JSON config block in README configuration or settings docs must show the full defaults, not partial overrides. Do not omit settings just because their values are defaults. If a setting has no default value, document it in the option table but do not invent one in the default JSON.
-
-Do not put these details in README configuration docs:
-
-- Alternate config locations or layering behavior.
-- TypeBox details.
-- `getAgentDir()` or `CONFIG_DIR_NAME` implementation names.
-- Schema refresh mechanics.
-- User-owned or extension-owned terminology.
-- Malformed-config overwrite policy.
-- Lifecycle or implementation policy.
-- Explanatory prose about schema metadata.
-- JSONC references; document JSON only.
+- Put `<!-- pi-extension-settings:start -->` and `<!-- pi-extension-settings:end -->` in the README exactly once.
+- Do not hand-edit content between those markers. The shared generator owns the settings path, option table, and complete default JSON document.
+- Put user-facing descriptions on TypeBox properties in `src/settings.ts`; wording changes flow into README documentation through generation.
+- Do not document alternate paths, layering, TypeBox mechanics, schema refresh, trust, migration, user-owned terminology, or malformed-file policy in the generated region.
 
 ## Implementation Notes
 

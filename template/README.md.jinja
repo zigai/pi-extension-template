@@ -19,7 +19,24 @@ For this private package on this machine, load the local working copy from Pi se
 ## Extension
 
 This package starts with an empty Pi extension in `src/index.ts`.
+{% if extension_settings %}
+<!-- pi-extension-settings:start -->
+## Configuration
 
+Global settings are stored in `~/.pi/agent/extension-settings/{{ repo_name }}.json`.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enabled` | boolean | `true` | Enable the extension. |
+
+```json
+{
+  "$schema": "./schemas/{{ repo_name }}.schema.json",
+  "enabled": true
+}
+```
+<!-- pi-extension-settings:end -->
+{% endif %}
 ## Development
 
 ```sh

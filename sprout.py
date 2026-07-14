@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import subprocess
@@ -34,6 +35,7 @@ class ConsoleLike(Protocol):
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
+EXTENSION_SETTINGS_PACKAGE_PATH = Path.home() / "Projects" / "pi-extension-settings"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
@@ -109,6 +111,42 @@ def _package_name_without_scope(name: str) -> str:
     return name.rsplit("/", maxsplit=1)[-1]
 
 
+def _extension_settings_package_version() -> str:
+    manifest_path = EXTENSION_SETTINGS_PACKAGE_PATH / "package.json"
+    try:
+        parsed = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(
+            f"Cannot read the extension settings package manifest at {manifest_path}"
+        ) from e
+
+    if not isinstance(parsed, dict):
+        raise RuntimeError(
+            f"Extension settings package manifest is not an object: {manifest_path}"
+        )
+    version = parsed.get("version")
+    if not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None:
+        raise RuntimeError(
+            f"Extension settings package has an invalid version: {manifest_path}"
+        )
+    return version
+
+
+def _settings_loader_name(repo_name: str) -> str:
+    feature_name = _title_case(_strip_pi_prefix(repo_name)).replace(" ", "")
+    return f"load{feature_name or 'Extension'}Settings"
+
+
+def _settings_schema_id(repository_url: str) -> str:
+    github_prefix = "https://github.com/"
+    if repository_url.startswith(github_prefix):
+        repository = repository_url.removeprefix(github_prefix).removesuffix(".git")
+        return (
+            f"https://raw.githubusercontent.com/{repository}/master/config.schema.json"
+        )
+    return f"{repository_url.rstrip('/')}/raw/master/config.schema.json"
+
+
 def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     repo_name = str(answers["repo_name"])
     feature = _strip_pi_prefix(repo_name)
@@ -118,8 +156,12 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     return sorted(keywords)
 
 
-def _package_dependencies(_answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    return []
+def _package_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
+    if not bool(answers.get("extension_settings")):
+        return []
+    version = str(answers["extension_settings_version"])
+    filename = f"zigai-pi-extension-settings-{version}.tgz"
+    return [("@zigai/pi-extension-settings", f"file:vendor/{filename}")]
 
 
 def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
@@ -130,15 +172,20 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
         ("@vitest/coverage-v8", "^4.1.9"),
         ("oxfmt", "^0.44.0"),
         ("oxlint", "^1.59.0"),
-        ("oxlint-tsgolint", "^0.23.0"),
+        ("oxlint-tsgolint", "^0.24.0"),
         ("typescript", "^6.0.3"),
         ("vitest", "^4.1.9"),
     ]
+    if bool(answers.get("extension_settings")):
+        dependencies.append(("typebox", "^1.1.38"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
-def _peer_dependencies(_answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    return [("@earendil-works/pi-coding-agent", "*")]
+def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
+    dependencies = [("@earendil-works/pi-coding-agent", "*")]
+    if bool(answers.get("extension_settings")):
+        dependencies.append(("typebox", "*"))
+    return dependencies
 
 
 def _pi_manifest_entries(_answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
@@ -153,7 +200,6 @@ def _string_sequence(value: object) -> list[str]:
     return []
 
 
-
 def _derived_answers(
     env: Environment,
     destination: Path,
@@ -163,21 +209,32 @@ def _derived_answers(
     repo_name = str(answers["repo_name"])
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
+    extension_settings = bool(answers.get("extension_settings"))
 
     result: dict[str, object] = dict(answers)
     result.update(
         {
-            "dev_dependencies": _dev_dependencies(answers),
+            "extension_settings": extension_settings,
+            "extension_settings_version": (
+                _extension_settings_package_version() if extension_settings else ""
+            ),
+            "settings_loader_name": _settings_loader_name(repo_name),
+            "settings_schema_id": _settings_schema_id(repository_url),
+        }
+    )
+    result.update(
+        {
+            "dev_dependencies": _dev_dependencies(result),
             "github_install_source": github_install_source(
                 repository_url,
                 fallback=str(answers.get("repo_name") or "pi-extension"),
             ),
             "keywords": _package_keywords(answers),
             "license_value": package_license_value(answers.get("copyright_license")),
-            "package_dependencies": _package_dependencies(answers),
+            "package_dependencies": _package_dependencies(result),
             "package_name_unscoped": _package_name_without_scope(package_name),
-            "peer_dependencies": _peer_dependencies(answers),
-            "pi_manifest_entries": _pi_manifest_entries(answers),
+            "peer_dependencies": _peer_dependencies(result),
+            "pi_manifest_entries": _pi_manifest_entries(result),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
             "title_name": title_name,
@@ -190,8 +247,12 @@ def _derived_answers(
 
 
 def questions(env: Environment, destination: Path) -> list[Question]:
-    git_user_name = str(env.globals.get("git_user_name") or _git_config_value("user.name"))
-    git_user_email = str(env.globals.get("git_user_email") or _git_config_value("user.email"))
+    git_user_name = str(
+        env.globals.get("git_user_name") or _git_config_value("user.name")
+    )
+    git_user_email = str(
+        env.globals.get("git_user_email") or _git_config_value("user.email")
+    )
     gh_available = shutil.which("gh") is not None
     npm_available = shutil.which("npm") is not None
     suggested_repo = _default_repo_name(destination)
@@ -201,7 +262,9 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 
     def default_repo_name(answers: Mapping[str, object]) -> str:
         package_name = str(answers.get("package_name") or suggested_repo)
-        return _kebab_case(_package_name_without_scope(package_name), fallback=suggested_repo)
+        return _kebab_case(
+            _package_name_without_scope(package_name), fallback=suggested_repo
+        )
 
     def default_repository_url(answers: Mapping[str, object]) -> str:
         return _default_repository_url(env, answers, destination)
@@ -249,6 +312,15 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             help="Keep this aligned with the locally installed Pi version used for docs and checks.",
             default=_installed_pi_version(),
             validators=[validate_semver],
+        ),
+        Question.yes_no(
+            key="extension_settings",
+            prompt="Include extension settings scaffolding?",
+            help_text=(
+                "Adds the shared TypeBox settings definition, generated artifacts, runtime loader, "
+                "and validation tooling."
+            ),
+            default=False,
         ),
         Question(
             key="copyright_license",
@@ -300,6 +372,13 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
         return True
     if relative_path.startswith(".github/") and "ci" not in github_workflows:
         return True
+    rendered_path = relative_path.removesuffix(".jinja")
+    if not bool(answers.get("extension_settings")) and rendered_path in {
+        ".prettierignore",
+        "config.schema.json",
+        "src/settings.ts",
+    }:
+        return True
     return False
 
 
@@ -311,7 +390,9 @@ def _add_github_repo_topics(
 ) -> None:
     gh_executable = shutil.which("gh")
     if gh_executable is None:
-        console.print("[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]")
+        console.print(
+            "[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]"
+        )
         return
 
     command = [
@@ -337,10 +418,46 @@ def _add_github_repo_topics(
     console.print(f"[yellow]Failed to add GitHub repository topics: {details}[/yellow]")
 
 
+def _vendor_extension_settings(
+    destination: Path,
+    version: str,
+    *,
+    console: ConsoleLike,
+) -> Path:
+    npm_executable = shutil.which("npm")
+    if npm_executable is None:
+        raise RuntimeError("npm is required to vendor @zigai/pi-extension-settings")
+
+    vendor_directory = destination / "vendor"
+    vendor_directory.mkdir(parents=True, exist_ok=True)
+    filename = f"zigai-pi-extension-settings-{version}.tgz"
+    tarball = vendor_directory / filename
+    result = subprocess.run(
+        [
+            npm_executable,
+            "pack",
+            str(EXTENSION_SETTINGS_PACKAGE_PATH),
+            "--pack-destination",
+            str(vendor_directory),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not tarball.is_file():
+        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        raise RuntimeError(f"Failed to vendor @zigai/pi-extension-settings: {details}")
+
+    console.print(f"[green]Vendored @zigai/pi-extension-settings {version}.[/green]")
+    return tarball.relative_to(destination)
+
+
 def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | None:
     npm_executable = shutil.which("npm")
     if npm_executable is None:
-        console.print("[yellow]npm is not installed; skipping package-lock.json creation.[/yellow]")
+        console.print(
+            "[yellow]npm is not installed; skipping package-lock.json creation.[/yellow]"
+        )
         return None
 
     result = subprocess.run(
@@ -373,6 +490,14 @@ def apply(context: ManifestContext) -> list[Path]:
         skip=should_skip_file,
         render_paths=True,
     )
+
+    if bool(render_answers.get("extension_settings")):
+        vendor_tarball = _vendor_extension_settings(
+            context.destination,
+            str(render_answers["extension_settings_version"]),
+            console=sprout_console,
+        )
+        created.append(vendor_tarball)
 
     if bool(render_answers.get("create_package_lock")):
         lockfile = _create_package_lock(context.destination, console=sprout_console)
