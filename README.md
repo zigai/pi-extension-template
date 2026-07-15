@@ -26,26 +26,18 @@ My personal template for Pi extension package repositories.
 
 ## Usage
 
-Use the local project command:
-
-```bash
-new pi /path/to/your/project
-```
-
-Run the Sprout template directly:
+Create a project directly:
 
 ```bash
 sprout new "https://github.com/zigai/pi-extension-template.git" /path/to/your/project
 ```
 
-Or register a trusted name once and reuse it:
+Or add the template for reuse:
 
 ```bash
 sprout add zigai/pi-extension-template --name pi
 sprout new pi /path/to/your/project
 ```
-
-Generated extensions include the published `@zigai/pi-extension-settings` package and bundle it for independent installation.
 
 ## Generated Project Structure
 
