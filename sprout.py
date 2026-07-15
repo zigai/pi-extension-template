@@ -119,8 +119,8 @@ def _settings_schema_id(repository_url: str) -> str:
     github_prefix = "https://github.com/"
     if repository_url.startswith(github_prefix):
         repository = repository_url.removeprefix(github_prefix).removesuffix(".git")
-        return f"https://raw.githubusercontent.com/{repository}/master/config.schema.json"
-    return f"{repository_url.rstrip('/')}/raw/master/config.schema.json"
+        return f"https://raw.githubusercontent.com/{repository}/HEAD/config.schema.json"
+    return f"{repository_url.rstrip('/')}/raw/HEAD/config.schema.json"
 
 
 def _package_keywords(answers: Mapping[str, object]) -> list[str]:
