@@ -20,8 +20,8 @@
   },
   "files": [
     "src",
-    "README.md"{% if extension_settings %},
-    "config.schema.json"{% endif %}{% if copyright_license != "None" %},
+    "README.md",
+    "config.schema.json"{% if copyright_license != "None" %},
     "LICENSE"{% endif %}
   ],
   "type": "module",
@@ -34,20 +34,16 @@
     "test": "vitest run",
     "coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "check": "{% if extension_settings %}npm run config:check && {% endif %}npm run format:check && npm run lint && npm run typecheck && npm test",
-    "verify": "npm run check"{% if extension_settings %},
+    "check": "npm run config:check && npm run format:check && npm run lint && npm run typecheck && npm test",
+    "verify": "npm run check",
     "config:generate": "pi-extension-settings generate",
-    "config:check": "pi-extension-settings check"{% endif %}
+    "config:check": "pi-extension-settings check"
   },
-{%- if package_dependencies %}
   "dependencies": {
 {%- for name, version in package_dependencies %}
     {{ name|tojson }}: {{ version|tojson }}{% if not loop.last %},{% endif %}
 {%- endfor %}
   },
-{%- else %}
-  "dependencies": {},
-{%- endif %}
   "devDependencies": {
 {%- for name, version in dev_dependencies %}
     {{ name|tojson }}: {{ version|tojson }}{% if not loop.last %},{% endif %}
@@ -65,15 +61,13 @@
     }{% if not loop.last %},{% endif %}
 {%- endfor %}
   },
-{%- if extension_settings %}
   "bundleDependencies": [
     "@zigai/pi-extension-settings"
   ],
-{%- endif %}
   "engines": {
     "node": ">=22.19.0 <27"
   },
-  "packageManager": "npm@11.0.0",
+  "packageManager": "npm@11.18.0",
   "pi": {
 {%- for name, paths in pi_manifest_entries %}
     {{ name|tojson }}: [
@@ -82,10 +76,10 @@
 {%- endfor %}
     ]{% if not loop.last %},{% endif %}
 {%- endfor %}
-  }{% if extension_settings %},
+  },
   "piExtensionSettings": {
     "definition": "./src/settings.ts",
     "schema": "./config.schema.json",
     "readme": "./README.md"
-  }{% endif %}
+  }
 }

@@ -18,8 +18,7 @@ For this private package on this machine, load the local working copy from Pi se
 
 ## Extension
 
-This package starts with an empty Pi extension in `src/index.ts`.
-{% if extension_settings %}
+The Pi extension entrypoint in `src/index.ts` loads and validates extension settings at session start.
 <!-- pi-extension-settings:start -->
 ## Configuration
 
@@ -36,7 +35,7 @@ Global settings are stored in `~/.pi/agent/extension-settings/{{ repo_name }}.js
 }
 ```
 <!-- pi-extension-settings:end -->
-{% endif %}
+
 ## Development
 
 ```sh

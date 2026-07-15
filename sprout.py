@@ -33,7 +33,7 @@ class ConsoleLike(Protocol):
 
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
-GITHUB_REPO_TOPICS = ("pi", "pi-coding-agent", "pi-extension")
+GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
 EXTENSION_SETTINGS_PACKAGE_VERSION = "0.1.2"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
@@ -67,14 +67,14 @@ def _default_repository_url(
     env: Environment, answers: Mapping[str, object], destination: Path
 ) -> str:
     repo = str(answers.get("repo_name") or _default_repo_name(destination)).strip()
-    username = str(env.globals.get("github_username") or "zigai").strip() or "zigai"
+    username = str(env.globals.get("github_username") or "my-user").strip() or "my-user"
     return github_repository_url(username, repo)
 
 
 def _installed_pi_version() -> str:
     pi_executable = shutil.which("pi")
     if pi_executable is None:
-        return "0.80.2"
+        return "0.80.7"
 
     result = subprocess.run(
         [pi_executable, "--version"],
@@ -84,7 +84,7 @@ def _installed_pi_version() -> str:
         timeout=5,
     )
     version = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
-    return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.2"
+    return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.7"
 
 
 def _git_config_value(key: str) -> str:
@@ -119,9 +119,7 @@ def _settings_schema_id(repository_url: str) -> str:
     github_prefix = "https://github.com/"
     if repository_url.startswith(github_prefix):
         repository = repository_url.removeprefix(github_prefix).removesuffix(".git")
-        return (
-            f"https://raw.githubusercontent.com/{repository}/master/config.schema.json"
-        )
+        return f"https://raw.githubusercontent.com/{repository}/master/config.schema.json"
     return f"{repository_url.rstrip('/')}/raw/master/config.schema.json"
 
 
@@ -134,9 +132,7 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     return sorted(keywords)
 
 
-def _package_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    if not bool(answers.get("extension_settings")):
-        return []
+def _package_dependencies() -> list[tuple[str, str]]:
     return [("@zigai/pi-extension-settings", EXTENSION_SETTINGS_PACKAGE_VERSION)]
 
 
@@ -144,24 +140,23 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     pi_version = str(answers["pi_version"])
     dependencies = [
         ("@earendil-works/pi-coding-agent", f"^{pi_version}"),
-        ("@types/node", "^24.10.1"),
-        ("@vitest/coverage-v8", "^4.1.9"),
-        ("oxfmt", "^0.44.0"),
-        ("oxlint", "^1.59.0"),
+        ("@types/node", "^24.13.3"),
+        ("@vitest/coverage-v8", "^4.1.10"),
+        ("oxfmt", "^0.59.0"),
+        ("oxlint", "^1.74.0"),
         ("oxlint-tsgolint", "^0.24.0"),
-        ("typescript", "^6.0.3"),
-        ("vitest", "^4.1.9"),
+        ("typescript", "^7.0.2"),
+        ("vitest", "^4.1.10"),
     ]
-    if bool(answers.get("extension_settings")):
-        dependencies.append(("typebox", "^1.1.38"))
+    dependencies.append(("typebox", "^1.3.6"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
-def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    dependencies = [("@earendil-works/pi-coding-agent", "*")]
-    if bool(answers.get("extension_settings")):
-        dependencies.append(("typebox", "*"))
-    return dependencies
+def _peer_dependencies() -> list[tuple[str, str]]:
+    return [
+        ("@earendil-works/pi-coding-agent", "*"),
+        ("typebox", "*"),
+    ]
 
 
 def _pi_manifest_entries(_answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
@@ -185,12 +180,9 @@ def _derived_answers(
     repo_name = str(answers["repo_name"])
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
-    extension_settings = bool(answers.get("extension_settings"))
-
     result: dict[str, object] = dict(answers)
     result.update(
         {
-            "extension_settings": extension_settings,
             "settings_loader_name": _settings_loader_name(repo_name),
             "settings_schema_id": _settings_schema_id(repository_url),
         }
@@ -204,9 +196,9 @@ def _derived_answers(
             ),
             "keywords": _package_keywords(answers),
             "license_value": package_license_value(answers.get("copyright_license")),
-            "package_dependencies": _package_dependencies(result),
+            "package_dependencies": _package_dependencies(),
             "package_name_unscoped": _package_name_without_scope(package_name),
-            "peer_dependencies": _peer_dependencies(result),
+            "peer_dependencies": _peer_dependencies(),
             "pi_manifest_entries": _pi_manifest_entries(result),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
@@ -214,20 +206,15 @@ def _derived_answers(
         }
     )
     result.setdefault("github_workflows", [])
-    result.setdefault("author_name", str(env.globals.get("git_user_name") or "zigai"))
+    result.setdefault("author_name", str(env.globals.get("git_user_name") or ""))
     result.setdefault("destination_path", str(destination))
     return result
 
 
 def questions(env: Environment, destination: Path) -> list[Question]:
-    git_user_name = str(
-        env.globals.get("git_user_name") or _git_config_value("user.name")
-    )
-    git_user_email = str(
-        env.globals.get("git_user_email") or _git_config_value("user.email")
-    )
+    git_user_name = str(env.globals.get("git_user_name") or _git_config_value("user.name"))
+    git_user_email = str(env.globals.get("git_user_email") or _git_config_value("user.email"))
     gh_available = shutil.which("gh") is not None
-    npm_available = shutil.which("npm") is not None
     suggested_repo = _default_repo_name(destination)
 
     def default_package_name(answers: Mapping[str, object]) -> str:
@@ -235,9 +222,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 
     def default_repo_name(answers: Mapping[str, object]) -> str:
         package_name = str(answers.get("package_name") or suggested_repo)
-        return _kebab_case(
-            _package_name_without_scope(package_name), fallback=suggested_repo
-        )
+        return _kebab_case(_package_name_without_scope(package_name), fallback=suggested_repo)
 
     def default_repository_url(answers: Mapping[str, object]) -> str:
         return _default_repository_url(env, answers, destination)
@@ -260,7 +245,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         Question(
             key="author_name",
             prompt="Author name",
-            default=git_user_name or "zigai",
+            default=git_user_name or None,
         ),
         Question(
             key="author_email",
@@ -286,15 +271,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             default=_installed_pi_version(),
             validators=[validate_semver],
         ),
-        Question.yes_no(
-            key="extension_settings",
-            prompt="Include extension settings scaffolding?",
-            help_text=(
-                "Adds the shared TypeBox settings definition, generated artifacts, runtime loader, "
-                "and validation tooling."
-            ),
-            default=False,
-        ),
         Question(
             key="copyright_license",
             prompt="Project license",
@@ -309,18 +285,10 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             default=["ci"],
         ),
         Question.yes_no(
-            key="create_package_lock",
-            prompt="Create package-lock.json now?",
-            help_text="Runs npm install --package-lock-only after rendering.",
-            default=True,
-            when=npm_available,
-        ),
-        Question.yes_no(
             key="create_github_repo",
-            prompt="Create GitHub repository now?",
+            prompt="Create a GitHub repository now?",
             help_text="Uses gh repo create after rendering and pushes the initial commit.",
-            default=True,
-            when=gh_available,
+            default=gh_available,
         ),
         Question(
             key="github_repo_visibility",
@@ -345,13 +313,6 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
         return True
     if relative_path.startswith(".github/") and "ci" not in github_workflows:
         return True
-    rendered_path = relative_path.removesuffix(".jinja")
-    if not bool(answers.get("extension_settings")) and rendered_path in {
-        ".prettierignore",
-        "config.schema.json",
-        "src/settings.ts",
-    }:
-        return True
     return False
 
 
@@ -363,9 +324,7 @@ def _add_github_repo_topics(
 ) -> None:
     gh_executable = shutil.which("gh")
     if gh_executable is None:
-        console.print(
-            "[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]"
-        )
+        console.print("[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]")
         return
 
     command = [
@@ -391,13 +350,10 @@ def _add_github_repo_topics(
     console.print(f"[yellow]Failed to add GitHub repository topics: {details}[/yellow]")
 
 
-def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | None:
+def _create_package_lock(destination: Path) -> Path:
     npm_executable = shutil.which("npm")
     if npm_executable is None:
-        console.print(
-            "[yellow]npm is not installed; skipping package-lock.json creation.[/yellow]"
-        )
-        return None
+        raise RuntimeError("npm is required to create package-lock.json")
 
     result = subprocess.run(
         [npm_executable, "install", "--package-lock-only"],
@@ -406,13 +362,14 @@ def _create_package_lock(destination: Path, *, console: ConsoleLike) -> Path | N
         text=True,
         check=False,
     )
-    if result.returncode == 0:
-        lockfile = destination / "package-lock.json"
-        return lockfile if lockfile.is_file() else None
+    if result.returncode != 0:
+        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
+        raise RuntimeError(f"Failed to create package-lock.json: {details}")
 
-    details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-    console.print(f"[yellow]Failed to create package-lock.json: {details}[/yellow]")
-    return None
+    lockfile = destination / "package-lock.json"
+    if not lockfile.is_file():
+        raise RuntimeError("npm completed without creating package-lock.json")
+    return lockfile
 
 
 def title(context: ManifestContext) -> str:
@@ -430,10 +387,8 @@ def apply(context: ManifestContext) -> list[Path]:
         render_paths=True,
     )
 
-    if bool(render_answers.get("create_package_lock")):
-        lockfile = _create_package_lock(context.destination, console=sprout_console)
-        if lockfile is not None:
-            created.append(lockfile.relative_to(context.destination))
+    lockfile = _create_package_lock(context.destination)
+    created.append(lockfile.relative_to(context.destination))
 
     git_result = run_git_post_actions(
         context.destination,

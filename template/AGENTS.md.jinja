@@ -10,7 +10,7 @@
 
 ## Extension Settings
 
-Only add extension-owned settings when the extension needs user-configurable behavior. Extensions that work from defaults or Pi context do not need settings files or the shared settings dependency.
+This scaffold includes extension-owned settings. Keep the generated settings artifacts current as options are added or changed.
 
 - Use `@zigai/pi-extension-settings` for extension-owned JSON settings. The template bundles it so published extensions remain independently installable.
 - Keep the TypeBox source of truth and runtime settings boundary together in a flat `src/settings.ts` module using `defineExtensionSettings`.
@@ -29,7 +29,7 @@ Only add extension-owned settings when the extension needs user-configurable beh
 
 ## README Settings Documentation
 
-Only extensions with meaningful user-facing settings should declare `piExtensionSettings` and include a generated region.
+Keep the declared `piExtensionSettings` artifacts and generated README region synchronized with the settings definition.
 
 - Put `<!-- pi-extension-settings:start -->` and `<!-- pi-extension-settings:end -->` in the README exactly once.
 - Do not hand-edit content between those markers. The shared generator owns the settings path, option table, and complete default JSON document.
@@ -46,6 +46,6 @@ Only extensions with meaningful user-facing settings should declare `piExtension
 - Use `StringEnum` from `@earendil-works/pi-ai` for model-facing string enums instead of `Type.Union` of literals.
 - Use `ctx.mode === "tui"` before terminal-only UI work and `ctx.hasUI` before dialogs/notifications.
 - Run `just setup` after cloning to install dependencies and Git hooks and verify the project.
-- Keep pre-commit enabled. For configured extensions, its first hook must run `config:check` so stale `config.schema.json` or generated README documentation cannot be committed.
+- Keep pre-commit enabled. Its first hook must run `config:check` so stale `config.schema.json` or generated README documentation cannot be committed.
 - Validate later changes with `just check` before handing off; use `just coverage` when coverage output is needed.
 - For visual/TUI changes, verify in a real tmux/TTY session instead of only relying on snapshots or non-interactive output.

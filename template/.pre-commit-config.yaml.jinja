@@ -1,13 +1,11 @@
 repos:
   - repo: local
     hooks:
-{%- if extension_settings %}
       - id: config-check
         name: generated settings artifacts
         entry: npm run config:check
         language: system
         pass_filenames: false
-{% endif %}
       - id: format-check
         name: format check
         entry: npm run format:check

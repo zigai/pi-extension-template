@@ -4,17 +4,16 @@ My personal template for Pi extension package repositories.
 
 ## Features
 
-* **Pi extension package setup** with package metadata and an explicit `pi` manifest
-* **Empty extension entrypoint** ready for custom Pi extension behavior
-* **Optional extension-settings scaffold** with a flat `src/settings.ts`, TypeBox source of truth, generated schema/README documentation, pre-commit and CI checks, and the `@zigai/pi-extension-settings` runtime
-* **Strict TypeScript tooling** with `tsconfig.json`, [oxlint](https://oxc.rs/docs/guide/usage/linter.html), and [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html)
-* **Just recipes** with [just](https://github.com/casey/just) for setup, checking, coverage, testing, linting, formatting, and fixing
-* **Testing setup** with Vitest and coverage output
-* **Optional GitHub Actions workflow** for CI
-* **Optional GitHub repository setup** through [GitHub CLI](https://cli.github.com/) with Pi repository topics
-* **License selection** for the shared SPDX license set used by the Python template
-* **Generated `README.md`** with Pi install instructions and local package setup notes
-* **Generated `AGENTS.md`** with Pi extension workflow guidance
+* A private npm package with an explicit Pi extension manifest and generated `package-lock.json`
+* An extension entrypoint wired to a typed settings loader
+* A TypeBox settings definition, generated JSON Schema and README documentation, and the bundled `@zigai/pi-extension-settings` runtime
+* Strict TypeScript settings with [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), and `tsc`
+* Vitest tests, V8 coverage, pre-commit checks, and [just](https://github.com/casey/just) development recipes
+* A GitHub Actions CI workflow
+* GitHub repository creation through [GitHub CLI](https://cli.github.com/)
+* `pi`, `pi-extension`, and `pi-coding-agent` GitHub topics mirrored in npm keywords
+* Destination-aware defaults using prior answers, Git configuration, the detected GitHub identity, and the installed Pi version
+* SPDX license selection plus generated README and `AGENTS.md` guidance
 
 ## Requirements
 
@@ -33,13 +32,20 @@ Use the local project command:
 new pi /path/to/your/project
 ```
 
-The template can also be invoked directly:
+Run the Sprout template directly:
 
 ```bash
-sprout "https://github.com/zigai/pi-extension-template.git" /path/to/your/project
+sprout new "https://github.com/zigai/pi-extension-template.git" /path/to/your/project
 ```
 
-Selecting extension settings adds the published `@zigai/pi-extension-settings` package and configures the generated project to bundle it for independent installation.
+Or register a trusted name once and reuse it:
+
+```bash
+sprout add zigai/pi-extension-template --name pi
+sprout new pi /path/to/your/project
+```
+
+Generated extensions include the published `@zigai/pi-extension-settings` package and bundle it for independent installation.
 
 ## Generated Project Structure
 
@@ -47,7 +53,7 @@ Selecting extension settings adds the published `@zigai/pi-extension-settings` p
 your-project/
 ├── src/
 │   ├── index.ts
-│   └── settings.ts             # optional settings scaffold
+│   └── settings.ts
 ├── test/
 │   └── index.test.ts
 ├── .github/workflows/          # optional CI workflow
@@ -55,10 +61,11 @@ your-project/
 ├── .oxfmtrc.json
 ├── .oxlintrc.json
 ├── .pre-commit-config.yaml
-├── config.schema.json          # optional generated settings schema
+├── .prettierignore
+├── config.schema.json
 ├── tsconfig.json
 ├── package.json                # includes the Pi manifest
-├── package-lock.json           # optional when requested
+├── package-lock.json
 ├── README.md
 ├── AGENTS.md
 ├── Justfile
@@ -68,4 +75,4 @@ your-project/
 
 ## License
 
-[MIT](https://github.com/zigai/pi-extension-template/blob/master/LICENSE)
+[MIT](https://github.com/zigai/pi-extension-template/blob/main/LICENSE)

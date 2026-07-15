@@ -15,17 +15,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 24
-{% if create_package_lock %}
           cache: npm
-{% endif %}
+
       - name: Install dependencies
-        run: {% if create_package_lock %}npm ci{% else %}npm install{% endif %}
+        run: npm ci
 
       - name: Check
         run: npm run check
