@@ -8,7 +8,7 @@ My personal template for Pi extension package repositories.
 * An extension entrypoint wired to a typed settings loader
 * A TypeBox settings definition, generated JSON Schema and README documentation, and the bundled `@zigai/pi-extension-settings` runtime
 * Strict TypeScript settings with [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), and `tsc`
-* Vitest tests, V8 coverage, pre-commit checks, and [just](https://github.com/casey/just) development recipes
+* Vitest and V8 coverage tooling, pre-commit checks, and [just](https://github.com/casey/just) development recipes
 * A GitHub Actions CI workflow
 * GitHub repository creation through [GitHub CLI](https://cli.github.com/)
 * `pi`, `pi-extension`, and `pi-coding-agent` GitHub topics mirrored in npm keywords
@@ -46,8 +46,6 @@ your-project/
 ├── src/
 │   ├── index.ts
 │   └── settings.ts
-├── test/
-│   └── index.test.ts
 ├── .github/workflows/          # optional CI workflow
 ├── .editorconfig
 ├── .oxfmtrc.json
