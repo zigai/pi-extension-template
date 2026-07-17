@@ -66,8 +66,33 @@ def _default_repository_url(
     env: Environment, answers: Mapping[str, object], destination: Path
 ) -> str:
     repo = str(answers.get("repo_name") or _default_repo_name(destination)).strip()
-    username = str(env.globals.get("github_username") or "my-user").strip() or "my-user"
+    username = _github_username(env)
     return github_repository_url(username, repo)
+
+
+def _github_username(env: Environment) -> str:
+    gh_executable = shutil.which("gh")
+    if gh_executable is not None:
+        try:
+            result = subprocess.run(
+                [gh_executable, "api", "user", "--jq", ".login"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        else:
+            username = result.stdout.strip()
+            if result.returncode == 0 and username:
+                return username
+
+    return (
+        str(env.globals.get("github_username") or "").strip()
+        or _git_config_value("user.name")
+        or "my-user"
+    )
 
 
 def _installed_pi_version() -> str:
@@ -189,10 +214,6 @@ def _derived_answers(
     result.update(
         {
             "dev_dependencies": _dev_dependencies(result),
-            "github_install_source": github_install_source(
-                repository_url,
-                fallback=str(answers.get("repo_name") or "pi-extension"),
-            ),
             "keywords": _package_keywords(answers),
             "license_value": package_license_value(answers.get("copyright_license")),
             "package_dependencies": _package_dependencies(),
