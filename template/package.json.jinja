@@ -1,7 +1,6 @@
 {
   "name": {{ package_name|tojson }},
   "version": "0.1.0",
-  "private": true,
   "description": {{ description|tojson }},
   "keywords": [
 {%- for keyword in keywords %}
@@ -25,6 +24,9 @@
     "LICENSE"{% endif %}
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "src/index.ts",
   "scripts": {
     "lint": "oxlint -c ./.oxlintrc.json .",

@@ -5,15 +5,7 @@
 ## Install
 
 ```sh
-pi install git:{{ github_install_source }}
-```
-
-For this private package on this machine, load the local working copy from Pi settings:
-
-```json
-{
-  "packages": [{{ destination_path|tojson }}]
-}
+pi install npm:{{ package_name }}
 ```
 
 ## Extension

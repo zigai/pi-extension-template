@@ -13,7 +13,6 @@ from sprout import CurrentYearExtension, GitDefaultsExtension, ManifestContext, 
 from sprout.cli import render_templates as sprout_render_templates
 from sprout.project import (
     SPDX_LICENSE_CHOICES,
-    github_install_source,
     github_repository_target,
     github_repository_url,
     package_license_value,
@@ -207,7 +206,6 @@ def _derived_answers(
     )
     result.setdefault("github_workflows", [])
     result.setdefault("author_name", str(env.globals.get("git_user_name") or ""))
-    result.setdefault("destination_path", str(destination))
     return result
 
 
@@ -218,7 +216,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
     suggested_repo = _default_repo_name(destination)
 
     def default_package_name(answers: Mapping[str, object]) -> str:
-        return suggested_repo
+        return f"@zigai/{suggested_repo}"
 
     def default_repo_name(answers: Mapping[str, object]) -> str:
         package_name = str(answers.get("package_name") or suggested_repo)
