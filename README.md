@@ -6,7 +6,7 @@ A template for creating Pi extension package repositories.
 
 * A publishable npm package with an explicit Pi extension manifest and generated `package-lock.json`
 * An extension entrypoint wired to a typed settings loader
-* A TypeBox settings definition, generated JSON Schema and README documentation, and the bundled `@zigai/pi-extension-settings` runtime
+* A TypeBox settings definition, generated JSON Schema and README documentation, and the bundled [`@zigai/pi-extension-settings`](https://github.com/zigai/pi-extension-settings) runtime
 * Strict TypeScript settings with [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), and `tsc`
 * Vitest and V8 coverage tooling, pre-commit checks, and [just](https://github.com/casey/just) development recipes
 * A GitHub Actions CI workflow
