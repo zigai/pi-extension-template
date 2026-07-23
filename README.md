@@ -52,7 +52,6 @@ your-project/
 ├── .oxfmtrc.json
 ├── .oxlintrc.json
 ├── .pre-commit-config.yaml
-├── .prettierignore
 ├── config.schema.json
 ├── tsconfig.json
 ├── package.json                # includes the Pi manifest
