@@ -8,9 +8,10 @@
 pi install npm:{{ package_name }}
 ```
 
-## Extension
+## Usage
 
-The Pi extension entrypoint in `src/index.ts` loads and validates extension settings at session start.
+After installation, start Pi normally; no additional activation step is required.
+
 <!-- pi-extension-settings:start -->
 ## Configuration
 
@@ -20,12 +21,17 @@ Global settings are stored in `~/.pi/agent/extension-settings/{{ repo_name }}.js
 | --- | --- | --- | --- |
 | `enabled` | boolean | `true` | Enable the extension. |
 
+<details>
+<summary>Complete default settings</summary>
+
 ```json
 {
   "$schema": "./schemas/{{ repo_name }}.schema.json",
   "enabled": true
 }
 ```
+
+</details>
 <!-- pi-extension-settings:end -->
 
 ## Development
