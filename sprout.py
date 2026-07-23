@@ -237,7 +237,7 @@ def questions(env: Environment, destination: Path) -> list[Question]:
     suggested_repo = _default_repo_name(destination)
 
     def default_package_name(answers: Mapping[str, object]) -> str:
-        return f"@zigai/{suggested_repo}"
+        return suggested_repo
 
     def default_repo_name(answers: Mapping[str, object]) -> str:
         package_name = str(answers.get("package_name") or suggested_repo)
