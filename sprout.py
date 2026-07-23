@@ -33,7 +33,7 @@ class ConsoleLike(Protocol):
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
-EXTENSION_SETTINGS_PACKAGE_VERSION = "0.1.2"
+EXTENSION_SETTINGS_PACKAGE_VERSION = "0.1.3"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
