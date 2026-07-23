@@ -34,6 +34,7 @@ class ConsoleLike(Protocol):
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
 EXTENSION_SETTINGS_PACKAGE_VERSION = "0.1.3"
+MINIMUM_PI_VERSION = "0.81.1"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
@@ -98,7 +99,7 @@ def _github_username(env: Environment) -> str:
 def _installed_pi_version() -> str:
     pi_executable = shutil.which("pi")
     if pi_executable is None:
-        return "0.80.7"
+        return MINIMUM_PI_VERSION
 
     result = subprocess.run(
         [pi_executable, "--version"],
@@ -108,7 +109,26 @@ def _installed_pi_version() -> str:
         timeout=5,
     )
     version = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
-    return version if re.fullmatch(r"\d+\.\d+\.\d+", version) else "0.80.7"
+    if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+        return MINIMUM_PI_VERSION
+
+    return max(version, MINIMUM_PI_VERSION, key=_semver_key)
+
+
+def _semver_key(version: str) -> tuple[int, int, int]:
+    major, minor, patch = version.split(".")
+    return int(major), int(minor), int(patch)
+
+
+def _validate_minimum_pi_version(
+    value: str,
+    _answers: Mapping[str, object] | None = None,
+) -> tuple[bool, str | None]:
+    if not re.fullmatch(r"\d+\.\d+\.\d+", value.strip()):
+        return True, None
+    if _semver_key(value.strip()) < _semver_key(MINIMUM_PI_VERSION):
+        return False, f"Pi {MINIMUM_PI_VERSION} or later is required."
+    return True, None
 
 
 def _git_config_value(key: str) -> str:
@@ -176,9 +196,10 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     return sorted(dependencies, key=lambda item: item[0])
 
 
-def _peer_dependencies() -> list[tuple[str, str]]:
+def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
+    pi_version = str(answers["pi_version"])
     return [
-        ("@earendil-works/pi-coding-agent", "*"),
+        ("@earendil-works/pi-coding-agent", f"^{pi_version}"),
         ("typebox", "*"),
     ]
 
@@ -218,7 +239,7 @@ def _derived_answers(
             "license_value": package_license_value(answers.get("copyright_license")),
             "package_dependencies": _package_dependencies(),
             "package_name_unscoped": _package_name_without_scope(package_name),
-            "peer_dependencies": _peer_dependencies(),
+            "peer_dependencies": _peer_dependencies(result),
             "pi_manifest_entries": _pi_manifest_entries(result),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
@@ -285,10 +306,10 @@ def questions(env: Environment, destination: Path) -> list[Question]:
         ),
         Question(
             key="pi_version",
-            prompt="Pi dev dependency version",
-            help="Keep this aligned with the locally installed Pi version used for docs and checks.",
+            prompt="Required Pi version",
+            help="Generated packages require this Pi version. The default is the latest supported version or a newer local Pi installation.",
             default=_installed_pi_version(),
-            validators=[validate_semver],
+            validators=[validate_semver, _validate_minimum_pi_version],
         ),
         Question(
             key="copyright_license",

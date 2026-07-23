@@ -12,6 +12,7 @@ A template for creating Pi extension package repositories.
 * A GitHub Actions CI workflow
 * GitHub repository creation through [GitHub CLI](https://cli.github.com/)
 * `pi`, `pi-extension`, and `pi-coding-agent` GitHub topics mirrored in npm keywords
+* A Pi peer dependency matching the selected Pi version, with Pi 0.81.1 as the minimum supported release
 * Destination-aware defaults using prior answers, Git configuration, the detected GitHub identity, and the installed Pi version
 * SPDX license selection plus generated README and `AGENTS.md` guidance
 
