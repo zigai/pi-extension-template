@@ -22,6 +22,9 @@ This scaffold includes extension-owned settings. Keep the generated settings art
 - Trusted project overrides live at `ctx.cwd/CONFIG_DIR_NAME/extension-settings/{{ repo_name }}.json`. Never read project settings for an untrusted project or create project settings automatically.
 - Parse settings at the boundary: `JSON.parse` to `unknown`, validate/decode with TypeBox, then pass typed settings inward. Never cast `JSON.parse` output to settings types or scatter hand-written shape checks.
 - Run the shared generator after changing the TypeBox definition. Check in `config.schema.json` and the generated README region; pre-commit and CI must run the shared artifact check.
+- `exampleSettings` is optional. Add it only when complex settings—such as structured arrays, nested objects, maps, unions, or meaningful interactions between options—need a realistic advanced example. Omit it for simple scalars or settings already obvious from the type table and defaults.
+- Keep a defined `exampleSettings` value focused on useful advanced behavior and free of secrets or maintainer-specific paths. The shared definition validates it as a settings layer and verifies that it changes the resolved defaults; the generator renders it under “Advanced example” automatically.
+- Give complex array-item and record-value object schemas a concise PascalCase `title`, such as `ModelMode`. The generated table uses it as the type name and rejects unnamed structural types that would make the table unreadably wide.
 - The shared loader may scaffold default global settings only when missing, never overwrite existing or malformed user settings, and refresh missing or stale installed schemas from the checked-in bundled schema.
 - Use environment variables only for secrets, CI/session overrides, or explicit settings-path overrides, not normal persisted options.
 - Keep secrets out of ordinary JSON settings unless the extension deliberately designs secure storage and permissions.
@@ -33,7 +36,7 @@ Keep the declared `piExtensionSettings` artifacts and generated README region sy
 
 - Put the generated settings region after installation and the normal first-use guidance.
 - Put `<!-- pi-extension-settings:start -->` and `<!-- pi-extension-settings:end -->` in the README exactly once.
-- Do not hand-edit content between those markers. The shared generator owns the settings path, compact option table, and complete default JSON document shown directly after the table.
+- Do not hand-edit content between those markers. The shared generator owns the settings path, compact option table, complete defaults, and optional advanced example.
 - Put user-facing descriptions on TypeBox properties in `src/settings.ts`; wording changes flow into README documentation through generation.
 - Do not document alternate paths, layering, TypeBox mechanics, schema refresh, trust, user-owned terminology, or malformed-file policy in the generated region.
 
