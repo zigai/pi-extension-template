@@ -33,8 +33,8 @@ class ConsoleLike(Protocol):
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
-EXTENSION_SETTINGS_PACKAGE_VERSION = "0.3.0"
-MINIMUM_PI_VERSION = "0.83.0"
+EXTENSION_SETTINGS_PACKAGE_VERSION = "0.4.1"
+MINIMUM_PI_VERSION = "0.84.0"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
 
@@ -184,15 +184,15 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     pi_version = str(answers["pi_version"])
     dependencies = [
         ("@earendil-works/pi-coding-agent", f"^{pi_version}"),
-        ("@types/node", "^24.13.3"),
+        ("@types/node", "^26.1.2"),
         ("@vitest/coverage-v8", "^4.1.10"),
-        ("oxfmt", "^0.59.0"),
-        ("oxlint", "^1.74.0"),
+        ("oxfmt", "^0.62.0"),
+        ("oxlint", "^1.77.0"),
         ("oxlint-tsgolint", "^7.0.2001"),
         ("typescript", "^7.0.2"),
         ("vitest", "^4.1.10"),
     ]
-    dependencies.append(("typebox", "^1.3.8"))
+    dependencies.append(("typebox", "^1.3.11"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
