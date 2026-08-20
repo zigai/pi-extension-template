@@ -49,7 +49,7 @@ your-project/
 ├── .github/workflows/          # optional CI workflow
 ├── .editorconfig
 ├── .oxfmtrc.json
-├── .oxlintrc.json
+├── oxlint.config.ts
 ├── .pre-commit-config.yaml
 ├── config.schema.json
 ├── tsconfig.json
