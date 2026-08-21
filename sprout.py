@@ -188,7 +188,7 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
         ("@vitest/coverage-v8", "^4.1.10"),
         ("oxfmt", "^0.62.0"),
         ("oxlint", "^1.79.0"),
-        ("oxlint-rules", "0.1.0"),
+        ("oxlint-rules", "latest"),
         ("oxlint-tsgolint", "^7.0.2001"),
         ("typescript", "^7.0.2"),
         ("vitest", "^4.1.10"),
