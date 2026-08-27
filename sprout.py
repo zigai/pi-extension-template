@@ -9,10 +9,12 @@ from typing import Protocol
 
 from jinja2 import Environment
 
-from sprout import CurrentYearExtension, GitDefaultsExtension, ManifestContext, Question
-from sprout.cli import render_templates as sprout_render_templates
-from sprout.project import (
+from sprout import (
     SPDX_LICENSE_CHOICES,
+    CurrentYearExtension,
+    GitDefaultsExtension,
+    ManifestContext,
+    Question,
     github_repository_target,
     github_repository_url,
     package_license_value,
@@ -21,10 +23,15 @@ from sprout.project import (
     should_skip_license_file,
     validate_npm_package_name,
     validate_repository_name,
+    validate_repository_url,
     validate_semver,
 )
-from sprout.prompt import console as sprout_console
-from sprout.validators import validate_repository_url
+from sprout import (
+    console as sprout_console,
+)
+from sprout import (
+    render_templates as sprout_render_templates,
+)
 
 
 class ConsoleLike(Protocol):
@@ -32,8 +39,12 @@ class ConsoleLike(Protocol):
 
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
+BUILD_MODE_CHOICES = [
+    ("source", "Direct TypeScript source"),
+    ("bundle", "Optimized bundled entry"),
+]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
-EXTENSION_SETTINGS_PACKAGE_VERSION = "0.4.1"
+EXTENSION_SETTINGS_PACKAGE_VERSION = "0.5.1"
 MINIMUM_PI_VERSION = "0.84.0"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
@@ -176,24 +187,30 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     return sorted(keywords)
 
 
-def _package_dependencies() -> list[tuple[str, str]]:
-    return [("@zigai/pi-extension-settings", EXTENSION_SETTINGS_PACKAGE_VERSION)]
+def _package_dependencies(env: Environment) -> list[tuple[str, str]]:
+    settings_package = str(
+        env.globals.get("extension_settings_package_spec")
+        or EXTENSION_SETTINGS_PACKAGE_VERSION
+    )
+    return [("@zigai/pi-extension-settings", settings_package)]
 
 
 def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     pi_version = str(answers["pi_version"])
     dependencies = [
         ("@earendil-works/pi-coding-agent", f"^{pi_version}"),
-        ("@types/node", "^26.1.2"),
+        ("@types/node", "^22.19.0"),
         ("@vitest/coverage-v8", "^4.1.10"),
         ("oxfmt", "^0.62.0"),
         ("oxlint", "^1.79.0"),
-        ("oxlint-rules", "latest"),
+        ("oxlint-rules", "0.2.0"),
         ("oxlint-tsgolint", "^7.0.2001"),
         ("typescript", "^7.0.2"),
         ("vitest", "^4.1.10"),
     ]
     dependencies.append(("typebox", "^1.3.11"))
+    if answers.get("build_mode") == "bundle":
+        dependencies.append(("esbuild", "^0.28.2"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
@@ -204,8 +221,9 @@ def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
     ]
 
 
-def _pi_manifest_entries(_answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
-    return [("extensions", ["./src/index.ts"])]
+def _pi_manifest_entries(answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
+    entry = "./dist/index.ts" if answers.get("build_mode") == "bundle" else "./src/index.ts"
+    return [("extensions", [entry])]
 
 
 def _string_sequence(value: object) -> list[str]:
@@ -237,7 +255,7 @@ def _derived_answers(
             "dev_dependencies": _dev_dependencies(result),
             "keywords": _package_keywords(answers),
             "license_value": package_license_value(answers.get("copyright_license")),
-            "package_dependencies": _package_dependencies(),
+            "package_dependencies": _package_dependencies(env),
             "package_name_unscoped": _package_name_without_scope(package_name),
             "peer_dependencies": _peer_dependencies(result),
             "pi_manifest_entries": _pi_manifest_entries(result),
@@ -312,6 +330,13 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             validators=[validate_semver, _validate_minimum_pi_version],
         ),
         Question(
+            key="build_mode",
+            prompt="Extension entry mode",
+            help="Direct source is simplest. Use a bundled entry for dependency-heavy extensions after startup measurement shows a benefit.",
+            choices=BUILD_MODE_CHOICES,
+            default="source",
+        ),
+        Question(
             key="copyright_license",
             prompt="Project license",
             choices=LICENSE_CHOICES,
@@ -353,6 +378,9 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
         return True
     if relative_path.startswith(".github/") and "ci" not in github_workflows:
         return True
+    rendered_path = relative_path.removesuffix(".jinja")
+    if rendered_path == "scripts/build.mjs" and answers.get("build_mode") != "bundle":
+        return True
     return False
 
 
@@ -390,26 +418,50 @@ def _add_github_repo_topics(
     console.print(f"[yellow]Failed to add GitHub repository topics: {details}[/yellow]")
 
 
-def _create_package_lock(destination: Path) -> Path:
+def _run_npm(destination: Path, arguments: Sequence[str], *, action: str) -> None:
     npm_executable = shutil.which("npm")
     if npm_executable is None:
-        raise RuntimeError("npm is required to create package-lock.json")
+        raise RuntimeError("npm is required to generate a verified project")
 
-    result = subprocess.run(
-        [npm_executable, "install", "--package-lock-only"],
-        cwd=destination,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            [npm_executable, *arguments],
+            cwd=destination,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired as cause:
+        raise RuntimeError(f"Timed out while {action}") from cause
     if result.returncode != 0:
-        details = result.stderr.strip() or result.stdout.strip() or "unknown error"
-        raise RuntimeError(f"Failed to create package-lock.json: {details}")
+        output = "\n".join(
+            section for section in (result.stdout.strip(), result.stderr.strip()) if section
+        )
+        raise RuntimeError(f"Failed while {action}: {output or 'unknown error'}")
 
-    lockfile = destination / "package-lock.json"
-    if not lockfile.is_file():
-        raise RuntimeError("npm completed without creating package-lock.json")
-    return lockfile
+
+def _install_generate_and_verify(destination: Path) -> list[Path]:
+    # The generated prevalidation artifact does not exist until after dependencies are
+    # installed. Suppress root lifecycle scripts for this first install, generate it,
+    # then run the complete non-mutating verification before any git side effects.
+    _run_npm(
+        destination,
+        ["install", "--ignore-scripts", "--no-audit", "--no-fund"],
+        action="installing dependencies",
+    )
+    _run_npm(destination, ["run", "config:generate"], action="generating settings artifacts")
+    _run_npm(destination, ["run", "verify"], action="verifying the generated project")
+
+    expected = [
+        Path("package-lock.json"),
+        Path("config.schema.json"),
+        Path("src/settings.prevalidated.ts"),
+    ]
+    missing = [str(path) for path in expected if not (destination / path).is_file()]
+    if missing:
+        raise RuntimeError(f"Project verification did not create: {', '.join(missing)}")
+    return expected
 
 
 def title(context: ManifestContext) -> str:
@@ -427,8 +479,9 @@ def apply(context: ManifestContext) -> list[Path]:
         render_paths=True,
     )
 
-    lockfile = _create_package_lock(context.destination)
-    created.append(lockfile.relative_to(context.destination))
+    for generated_path in _install_generate_and_verify(context.destination):
+        if generated_path not in created:
+            created.append(generated_path)
 
     git_result = run_git_post_actions(
         context.destination,

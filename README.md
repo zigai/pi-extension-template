@@ -1,28 +1,29 @@
 # Pi Extension Template
 
-A template for creating Pi extension package repositories.
+A production-minded template for small, fast, typed Pi extension packages.
 
 ## Features
 
-* A publishable npm package with an explicit Pi extension manifest and generated `package-lock.json`
-* An extension entrypoint wired to a typed settings loader
-* A TypeBox settings definition with optional validated advanced examples for complex settings, generated JSON Schema and README documentation, and the bundled [`@zigai/pi-extension-settings`](https://github.com/zigai/pi-extension-settings) runtime
-* Strict TypeScript settings with [oxlint](https://oxc.rs/docs/guide/usage/linter.html), [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), and `tsc`
-* Vitest and V8 coverage tooling, pre-commit checks, and [just](https://github.com/casey/just) development recipes
-* A GitHub Actions CI workflow
-* GitHub repository creation through [GitHub CLI](https://cli.github.com/)
-* `pi`, `pi-extension`, and `pi-coding-agent` GitHub topics mirrored in npm keywords
-* Destination-aware defaults using prior answers, Git configuration, the detected GitHub identity, and the installed Pi version
-* SPDX license selection plus generated README and `AGENTS.md` guidance
+- Direct TypeScript or optimized bundled Pi entry, selected when generating the project
+- Synchronous, I/O-free registration with an explicit first-use/session behavior seam
+- Exactly-once first-use settings guidance, a functional global/project `enabled` behavior switch, and Pi-level zero-load disabling
+- Prevalidated TypeBox settings split into authoring input, generated artifact, and runtime loader
+- Generated JSON Schema and README settings documentation
+- Strict TypeScript, Oxlint, Oxfmt, Vitest, pre-commit, and Just recipes
+- A real Pi resource-loader contract test rather than an empty test suite
+- One focused npm package check for declared entries, settings files, accidental dependencies, and workspace-path leakage
+- Optional GitHub Actions CI and GitHub repository creation
+
+The template deliberately does not add a custom build framework, project configuration abstraction, startup benchmark suite, or TUI/native testing to every extension. Add specialized tooling only when the extension needs it.
 
 ## Requirements
 
-* Node.js 22.19+
-* npm
-* [sprout](https://github.com/zigai/sprout)
-* [pre-commit](https://pre-commit.com/)
-* Git
-* [GitHub CLI](https://cli.github.com/) (optional)
+- Node.js 22.19+
+- npm
+- [sprout](https://github.com/zigai/sprout)
+- [pre-commit](https://pre-commit.com/)
+- Git
+- [GitHub CLI](https://cli.github.com/) (optional)
 
 ## Usage
 
@@ -39,26 +40,38 @@ sprout add zigai/pi-extension-template --name pi
 sprout new pi /path/to/your/project
 ```
 
+Choose **Direct TypeScript source** for a small extension. Choose **Optimized bundled entry** when the extension has enough local implementation code that startup measurements justify a build step. Bundled Git installations remain usable because Pi runs `npm install` after cloning and the generated `prepare` script builds `dist/index.ts`.
+
+Generation installs dependencies, derives settings artifacts, and verifies the project before any optional initial commit or GitHub push.
+
 ## Generated Project Structure
 
 ```text
 your-project/
 ├── src/
 │   ├── index.ts
+│   ├── settings-input.ts
+│   ├── settings.prevalidated.ts
 │   └── settings.ts
-├── .github/workflows/          # optional CI workflow
+├── test/
+│   └── load.test.ts
+├── scripts/
+│   ├── package-check.mjs
+│   └── build.mjs                 # bundled mode only
+├── dist/                         # bundled mode only; generated and ignored
+├── .github/workflows/            # optional CI workflow
 ├── .editorconfig
 ├── .oxfmtrc.json
 ├── oxlint.config.ts
 ├── .pre-commit-config.yaml
-├── config.schema.json
+├── config.schema.json            # generated
 ├── tsconfig.json
-├── package.json                # includes the Pi manifest
+├── package.json
 ├── package-lock.json
 ├── README.md
 ├── AGENTS.md
 ├── Justfile
-├── LICENSE                     # omitted when no license is selected
+├── LICENSE                       # optional
 └── .gitignore
 ```
 

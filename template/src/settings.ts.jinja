@@ -1,32 +1,18 @@
-import { defineExtensionSettings } from "@zigai/pi-extension-settings";
 import { loadPiExtensionSettings, type PiSettingsContext } from "@zigai/pi-extension-settings/pi";
-import { Type, type Static } from "typebox";
+import { definePrevalidatedExtensionSettings } from "@zigai/pi-extension-settings/runtime";
+import type { StaticDecode } from "typebox";
 
-const settingsSchema = Type.Object(
-    {
-        enabled: Type.Boolean({
-            default: true,
-            description: "Enable the extension.",
-        }),
-    },
-    { additionalProperties: false },
+import prevalidatedSettings from "./settings.prevalidated.ts";
+import settingsInput, { settingsSchema } from "./settings-input.ts";
+
+export type ExtensionSettings = StaticDecode<typeof settingsSchema>;
+
+export const extensionSettingsDefinition = definePrevalidatedExtensionSettings(
+    settingsInput,
+    prevalidatedSettings,
 );
 
-export type ExtensionSettings = Static<typeof settingsSchema>;
-
-export const extensionSettingsDefinition = defineExtensionSettings({
-    id: {{ repo_name|tojson }},
-    title: {{ title_name|tojson }},
-    description: {{ ("Settings for " ~ title_name ~ ".")|tojson }},
-{%- if settings_schema_id|length > 83 %}
-    schemaId:
-        {{ settings_schema_id|tojson }},
-{%- else %}
-    schemaId: {{ settings_schema_id|tojson }},
-{%- endif %}
-    schema: settingsSchema,
-});
-
+/** Load resolved global and trusted-project settings for this session. */
 export function {{ settings_loader_name }}(ctx: PiSettingsContext) {
     return loadPiExtensionSettings(extensionSettingsDefinition, ctx, {
         bundledSchema: {

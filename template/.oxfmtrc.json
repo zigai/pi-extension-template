@@ -1,3 +1,3 @@
 {
-  "ignorePatterns": ["config.schema.json", "README.md"]
+  "ignorePatterns": ["config.schema.json", "README.md", "src/settings.prevalidated.ts"]
 }

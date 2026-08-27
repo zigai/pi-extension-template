@@ -1,0 +1,28 @@
+import type { ExtensionSettingsDefinitionInput } from "@zigai/pi-extension-settings";
+import { Type } from "typebox";
+
+export const settingsSchema = Type.Object(
+    {
+        enabled: Type.Boolean({
+            default: true,
+            description: "Enable the extension's behavior.",
+            "x-control": "switch",
+        }),
+    },
+    { additionalProperties: false },
+);
+
+export const settingsInput = {
+    id: {{ repo_name|tojson }},
+    title: {{ title_name|tojson }},
+    description: {{ ("Settings for " ~ title_name ~ ".")|tojson }},
+{%- if settings_schema_id|length > 83 %}
+    schemaId:
+        {{ settings_schema_id|tojson }},
+{%- else %}
+    schemaId: {{ settings_schema_id|tojson }},
+{%- endif %}
+    schema: settingsSchema,
+} as const satisfies ExtensionSettingsDefinitionInput<typeof settingsSchema>;
+
+export default settingsInput;

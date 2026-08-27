@@ -1,0 +1,56 @@
+import { access, readFile, rm } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const outputPath = path.join(packageRoot, "dist", "index.ts");
+const sourceMapPath = `${outputPath}.map`;
+
+async function productionArtifactsExist() {
+    try {
+        await Promise.all([access(outputPath), access(sourceMapPath)]);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Registry tarballs already contain dist and do not install development dependencies. Git
+// packages do not contain ignored dist output, so Pi's npm install reaches this prepare hook and
+// builds it with the repository's development dependencies.
+const isPreparedTarball =
+    process.env.npm_lifecycle_event === "prepare" && (await productionArtifactsExist());
+if (!isPreparedTarball) {
+    const { build } = await import("esbuild");
+    await rm(path.dirname(outputPath), { recursive: true, force: true });
+    const result = await build({
+        entryPoints: [path.join(packageRoot, "src", "index.ts")],
+        outfile: outputPath,
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22.19",
+        packages: "external",
+        treeShaking: true,
+        sourcemap: "external",
+        sourcesContent: true,
+        legalComments: "none",
+        charset: "utf8",
+        metafile: true,
+    });
+
+    const [output, sourceMap] = await Promise.all([
+        readFile(outputPath, "utf8"),
+        readFile(sourceMapPath, "utf8"),
+    ]);
+    for (const artifact of [output, sourceMap]) {
+        if (artifact.includes(packageRoot)) {
+            throw new Error("Build output contains an absolute workspace path");
+        }
+    }
+    for (const inputPath of Object.keys(result.metafile.inputs)) {
+        if (inputPath.includes("node_modules/")) {
+            throw new Error(`Build bundled a package dependency: ${inputPath}`);
+        }
+    }
+}

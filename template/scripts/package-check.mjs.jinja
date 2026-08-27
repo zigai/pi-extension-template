@@ -1,0 +1,85 @@
+import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import { fileURLToPath } from "node:url";
+
+import { Type } from "typebox";
+import { Value } from "typebox/value";
+
+const execFileAsync = promisify(execFile);
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const npmExecutable = process.platform === "win32" ? "npm.cmd" : "npm";
+
+const PackageManifestSchema = Type.Object({
+    pi: Type.Object({ extensions: Type.Array(Type.String(), { minItems: 1 }) }),
+    piExtensionSettings: Type.Object({
+        definition: Type.String(),
+        prevalidation: Type.String(),
+        schema: Type.String(),
+        readme: Type.String(),
+    }),
+});
+const PackDescriptionSchema = Type.Object({
+    files: Type.Array(Type.Object({ path: Type.String() })),
+});
+const PackOutputSchema = Type.Union([
+    Type.Array(PackDescriptionSchema, { minItems: 1 }),
+    Type.Record(Type.String(), PackDescriptionSchema),
+]);
+
+const packageManifest = Value.Parse(
+    PackageManifestSchema,
+    JSON.parse(await readFile(path.join(packageRoot, "package.json"), "utf8")),
+);
+const { stdout } = await execFileAsync(
+    npmExecutable,
+    ["pack", "--dry-run", "--ignore-scripts", "--json"],
+    { cwd: packageRoot, encoding: "utf8" },
+);
+const packOutput = Value.Parse(PackOutputSchema, JSON.parse(stdout));
+const packed = Array.isArray(packOutput) ? packOutput[0] : Object.values(packOutput)[0];
+if (packed === undefined) throw new Error("npm pack did not describe an artifact");
+
+const files = new Set(packed.files.map((file) => file.path));
+const configuredPaths = [
+    ...packageManifest.pi.extensions,
+    packageManifest.piExtensionSettings.definition,
+    packageManifest.piExtensionSettings.prevalidation,
+    packageManifest.piExtensionSettings.schema,
+    packageManifest.piExtensionSettings.readme,
+];
+for (const configuredPath of configuredPaths) {
+    const packedPath = configuredPath.replace(/^\.\//u, "");
+    if (!files.has(packedPath)) {
+        throw new Error(`npm package is missing declared file: ${packedPath}`);
+    }
+}
+const productionEntry = packageManifest.pi.extensions[0]?.replace(/^\.\//u, "");
+if (productionEntry?.startsWith("dist/") === true) {
+    for (const required of [`${productionEntry}.map`, "scripts/build.mjs"]) {
+        if (!files.has(required)) throw new Error(`npm package is missing ${required}`);
+    }
+}
+for (const file of files) {
+    if (file.startsWith("node_modules/") || file.includes("/node_modules/")) {
+        throw new Error(`npm package contains a nested dependency: ${file}`);
+    }
+    if (file.startsWith("test/") || (file.startsWith("scripts/") && file !== "scripts/build.mjs")) {
+        throw new Error(`npm package contains development-only files: ${file}`);
+    }
+}
+
+const workspacePaths = new Set([packageRoot, packageRoot.split(path.sep).join("/")]);
+const textExtensions = new Set([".js", ".json", ".map", ".md", ".mjs", ".ts"]);
+for (const file of files) {
+    if (!textExtensions.has(path.extname(file))) continue;
+    const content = await readFile(path.join(packageRoot, file), "utf8");
+    for (const workspacePath of workspacePaths) {
+        if (content.includes(workspacePath)) {
+            throw new Error(`npm package file contains an absolute workspace path: ${file}`);
+        }
+    }
+}
+
+console.log("package check passed");

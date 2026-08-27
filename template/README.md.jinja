@@ -15,19 +15,10 @@ After installation, start Pi normally; no additional activation step is required
 <!-- pi-extension-settings:start -->
 ## Configuration
 
-Global settings are stored in `~/.pi/agent/extension-settings/{{ repo_name }}.json`.
-
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `enabled` | boolean | `true` | Enable the extension. |
-
-```json
-{
-  "$schema": "./schemas/{{ repo_name }}.schema.json",
-  "enabled": true
-}
-```
+Run `npm run config:generate` to generate this section.
 <!-- pi-extension-settings:end -->
+
+`enabled` is the extension-owned global/project behavior switch. Settings are resolved once per session when the extension first needs them; disabled callbacks stay inert. Reload after changing it. Use `pi config` for the zero-load hard switch when Pi should not import or register the extension at all.
 
 ## Development
 
@@ -35,6 +26,8 @@ Global settings are stored in `~/.pi/agent/extension-settings/{{ repo_name }}.js
 just setup
 just coverage
 ```
+
+The package uses {{ "a bundled `dist/index.ts` production entry" if build_mode == "bundle" else "the direct `src/index.ts` entry" }}. `npm run verify` runs source checks and the focused npm artifact check.
 
 {% if copyright_license != "None" %}
 ## License
