@@ -44,7 +44,7 @@ BUILD_MODE_CHOICES = [
     ("bundle", "Optimized bundled entry"),
 ]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
-EXTENSION_SETTINGS_PACKAGE_VERSION = "0.5.1"
+EXTENSION_SETTINGS_PACKAGE_VERSION = "0.5.2"
 MINIMUM_PI_VERSION = "0.84.0"
 
 LICENSE_CHOICES = list(SPDX_LICENSE_CHOICES)
