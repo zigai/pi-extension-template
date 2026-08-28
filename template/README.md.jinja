@@ -18,7 +18,7 @@ After installation, start Pi normally; no additional activation step is required
 Run `npm run config:generate` to generate this section.
 <!-- pi-extension-settings:end -->
 
-`enabled` is the extension-owned global/project behavior switch. Settings are resolved once per session when the extension first needs them; disabled callbacks stay inert. Reload after changing it. Use `pi config` for the zero-load hard switch when Pi should not import or register the extension at all.
+`enabled` is the extension-owned global/project behavior switch. When adding behavior, resolve settings once per session at first use and return from every disabled callback without side effects. Reload after changing it. Use `pi config` for the zero-load hard switch when Pi should not import or register the extension at all.
 
 ## Development
 

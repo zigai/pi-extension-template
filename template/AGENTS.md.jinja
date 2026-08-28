@@ -59,8 +59,10 @@ const ensureSessionActivated = (ctx: ExtensionContext): ExtensionSettings | unde
   const loaded = {{ settings_loader_name }}(ctx);
   settings = loaded.settings;
   activationComplete = true;
-  for (const diagnostic of loaded.diagnostics) {
-    ctx.ui.notify(diagnostic.message, diagnostic.severity);
+  if (ctx.hasUI) {
+    for (const diagnostic of loaded.diagnostics) {
+      ctx.ui.notify(diagnostic.message, diagnostic.severity);
+    }
   }
   return settings?.enabled === true ? settings : undefined;
 };
@@ -79,9 +81,22 @@ Call `ensureSessionActivated(ctx)` from every possible first feature callback. A
 - Keep the root object closed with `additionalProperties: false`. Every setting needs a useful description and valid default; represent transformation with TypeBox codecs instead of downstream conversion.
 - `src/settings.prevalidated.ts` is generated. `src/settings.ts` hydrates it with `definePrevalidatedExtensionSettings` and loads Pi settings with `loadPiExtensionSettings`.
 - Derive resolved settings as `StaticDecode<typeof settingsSchema>`. Never duplicate the interface, cast loaded values to it, or cast decoded external data.
+- Define `exampleSettings` only when structured or interacting options benefit from one realistic advanced example. It is a validated partial layer: keep it valid JSON, focused, different from the defaults, and free of secrets and maintainer-specific paths.
+- Give complex array-item and record-value object schemas a concise PascalCase `title`, such as `ModelMode`, so generated option tables remain readable.
+- Resolution applies schema defaults, then global settings, then trusted-project settings. Objects merge recursively; arrays and scalar values replace earlier values.
+- Loading may scaffold a missing global settings file and install or refresh its editor schema. It never overwrites or repairs an existing settings file and never creates a project settings file. Malformed or invalid layers stay untouched and produce diagnostics without exposing setting values or secrets.
 - The settings quartet—`src/settings-input.ts`, `src/settings.prevalidated.ts`, `config.schema.json`, and the generated README section—must stay synchronized, declared in `piExtensionSettings`, and present in the npm package. Generate them with `npm run config:generate`; never hand-edit generated files or README markers.
 - Keep `@zigai/pi-extension-settings` as a normal runtime dependency, not a `bundleDependency`.
-- Never hardcode Pi configuration paths. Read trusted project overrides only through `loadPiExtensionSettings` and never create project settings automatically.
+- Never hardcode Pi configuration paths. Resolve global paths and trusted-project overrides through the settings package and Pi context.
+
+## Settings Updates
+
+- Use `updatePiExtensionSettings()` instead of reading or writing extension settings files directly. Call the loader first so the generated editor schema is installed and verified.
+- The update callback receives the latest encoded layer and runs synchronously once while the settings sources are locked. Keep it deterministic and side-effect free; the package validates the layer and resolved settings before atomic publication.
+- A project update requires a trusted project. Unlike loading, this explicit write may create a missing trusted-project settings file. Existing malformed or invalid files remain unchanged.
+- For a snapshot-based editor, pass the loaded `globalRevision` or `projectRevision` as `expectedRevision` and handle `conflict`. Omit the revision for a semantic update that should apply to the latest valid layer.
+- Handle every typed update outcome. Only `updated` and `unchanged` are successful; surface `conflict`, `blocked`, `invalid-existing`, `invalid-update`, and `failed` without logging setting values.
+- Do not wrap `updatePiExtensionSettings()` in another mutation queue; it already coordinates Pi's per-file queue, a cooperative inter-process lock, validation, and atomic replacement.
 
 ## Capability Design
 
@@ -90,7 +105,7 @@ Call `ensureSessionActivated(ctx)` from every possible first feature callback. A
 - Do not bypass contracts with `any`, unchecked casts, or non-null assertions. Avoid pass-through wrappers and speculative extension points.
 - Put useful user- and model-facing descriptions on every tool, command, flag, and shortcut. A tool-specific prompt guideline must name that exact tool.
 - Use `StringEnum` from `@earendil-works/pi-ai` for model-facing string enums.
-- Wrap the entire read-modify-write operation of a file-mutating tool in Pi's mutation queue.
+- Wrap the entire read-modify-write operation of an ordinary file-mutating tool in Pi's mutation queue. Extension settings updates use `updatePiExtensionSettings()` instead.
 - Truncate large tool output and tell the model where the complete output was saved.
 - Guard terminal-only work with `ctx.mode === "tui"` and dialogs or notifications with `ctx.hasUI`.
 

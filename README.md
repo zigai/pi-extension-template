@@ -6,7 +6,7 @@ A production-minded template for small, fast, typed Pi extension packages.
 
 - Direct TypeScript or optimized bundled Pi entry, selected when generating the project
 - Synchronous, I/O-free registration with an explicit first-use/session behavior seam
-- Exactly-once first-use settings guidance, a functional global/project `enabled` behavior switch, and Pi-level zero-load disabling
+- Exactly-once first-use settings guidance, a schema-led global/project `enabled` switch, and Pi-level zero-load disabling
 - Prevalidated TypeBox settings split into authoring input, generated artifact, and runtime loader
 - Generated JSON Schema and README settings documentation
 - Strict TypeScript, Oxlint, Oxfmt, Vitest, pre-commit, and Just recipes
