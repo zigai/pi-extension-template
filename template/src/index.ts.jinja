@@ -1,17 +1,17 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+import { createSessionSettings } from "./settings.ts";
+
 /** Register the {{ title_name }} Pi extension. */
 export default function extension(pi: ExtensionAPI): void {
-    pi.on("session_start", () => {
-        // Reset session-owned activation, settings, cancellation, and resources here. Keep this
-        // startup-critical callback free of settings I/O unless the feature must begin now.
-    });
+    const settings = createSessionSettings();
 
-    pi.on("session_shutdown", () => {
-        // Abort and dispose session-owned work, then clear its activation and settings state.
-    });
+    pi.on("session_start", () => settings.reset());
+    pi.on("session_shutdown", () => settings.reset());
 
-    // Register tools, commands, renderers, and other Pi resources synchronously here. When adding
-    // behavior, follow AGENTS.md's exactly-once activation pattern from every possible first-use
-    // callback and return without side effects when resolved settings have enabled: false.
+    pi.on("before_agent_start", (_event, ctx) => {
+        // Prepare settings and report configuration diagnostics once, before the first turn.
+        // Feature callbacks must gate on get(ctx)'s enabled result; share this cache there.
+        settings.get(ctx);
+    });
 }

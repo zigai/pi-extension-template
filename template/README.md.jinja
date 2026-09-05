@@ -10,7 +10,7 @@ pi install npm:{{ package_name }}
 
 ## Usage
 
-After installation, start Pi normally; no additional activation step is required.
+Start Pi normally. This scaffold prepares configuration before the first agent turn; it does not yet add tools or commands.
 
 <!-- pi-extension-settings:start -->
 ## Configuration
@@ -18,7 +18,7 @@ After installation, start Pi normally; no additional activation step is required
 Run `npm run config:generate` to generate this section.
 <!-- pi-extension-settings:end -->
 
-`enabled` is the extension-owned global/project behavior switch. When adding behavior, resolve settings once per session at first use and return from every disabled callback without side effects. Reload after changing it. Use `pi config` for the zero-load hard switch when Pi should not import or register the extension at all.
+Set `enabled` to `false` to disable extension behavior, then reload Pi. Use `pi config` to prevent loading the extension entirely.
 
 ## Development
 
@@ -27,7 +27,8 @@ just setup
 just coverage
 ```
 
-The package uses {{ "a bundled `dist/index.ts` production entry" if build_mode == "bundle" else "the direct `src/index.ts` entry" }}. `npm run verify` runs source checks and the focused npm artifact check.
+Edit `src/settings-input.ts` and run `npm run config:generate` to update settings.
+`src/index.ts` is the direct TypeScript entry; `npm run verify` checks source, tests, and the npm artifact.
 
 {% if copyright_license != "None" %}
 ## License

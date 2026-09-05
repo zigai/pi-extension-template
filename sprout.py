@@ -39,10 +39,6 @@ class ConsoleLike(Protocol):
 
 
 WORKFLOW_CHOICES = [("ci", "GitHub Actions CI")]
-BUILD_MODE_CHOICES = [
-    ("source", "Direct TypeScript source"),
-    ("bundle", "Optimized bundled entry"),
-]
 GITHUB_REPO_TOPICS = ("pi", "pi-extension", "pi-coding-agent")
 EXTENSION_SETTINGS_PACKAGE_VERSION = "0.5.2"
 MINIMUM_PI_VERSION = "0.84.0"
@@ -189,8 +185,7 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
 
 def _package_dependencies(env: Environment) -> list[tuple[str, str]]:
     settings_package = str(
-        env.globals.get("extension_settings_package_spec")
-        or EXTENSION_SETTINGS_PACKAGE_VERSION
+        env.globals.get("extension_settings_package_spec") or EXTENSION_SETTINGS_PACKAGE_VERSION
     )
     return [("@zigai/pi-extension-settings", settings_package)]
 
@@ -205,12 +200,10 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
         ("oxlint", "^1.79.0"),
         ("oxlint-rules", "latest"),
         ("oxlint-tsgolint", "^7.0.2001"),
+        ("typebox", "^1.3.11"),
         ("typescript", "^7.0.2"),
         ("vitest", "^4.1.10"),
     ]
-    dependencies.append(("typebox", "^1.3.11"))
-    if answers.get("build_mode") == "bundle":
-        dependencies.append(("esbuild", "^0.28.2"))
     return sorted(dependencies, key=lambda item: item[0])
 
 
@@ -219,11 +212,6 @@ def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
         ("@earendil-works/pi-coding-agent", "*"),
         ("typebox", "*"),
     ]
-
-
-def _pi_manifest_entries(answers: Mapping[str, object]) -> list[tuple[str, list[str]]]:
-    entry = "./dist/index.ts" if answers.get("build_mode") == "bundle" else "./src/index.ts"
-    return [("extensions", [entry])]
 
 
 def _string_sequence(value: object) -> list[str]:
@@ -258,7 +246,6 @@ def _derived_answers(
             "package_dependencies": _package_dependencies(env),
             "package_name_unscoped": _package_name_without_scope(package_name),
             "peer_dependencies": _peer_dependencies(result),
-            "pi_manifest_entries": _pi_manifest_entries(result),
             "repository_git_url": repository_git_url(repository_url),
             "repository_url": repository_url,
             "title_name": title_name,
@@ -330,13 +317,6 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             validators=[validate_semver, _validate_minimum_pi_version],
         ),
         Question(
-            key="build_mode",
-            prompt="Extension entry mode",
-            help="Direct source is simplest. Use a bundled entry for dependency-heavy extensions after startup measurement shows a benefit.",
-            choices=BUILD_MODE_CHOICES,
-            default="source",
-        ),
-        Question(
             key="copyright_license",
             prompt="Project license",
             choices=LICENSE_CHOICES,
@@ -376,12 +356,7 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
 
     if should_skip_license_file(relative_path, dict(answers)):
         return True
-    if relative_path.startswith(".github/") and "ci" not in github_workflows:
-        return True
-    rendered_path = relative_path.removesuffix(".jinja")
-    if rendered_path == "scripts/build.mjs" and answers.get("build_mode") != "bundle":
-        return True
-    return False
+    return relative_path.startswith(".github/") and "ci" not in github_workflows
 
 
 def _add_github_repo_topics(

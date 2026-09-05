@@ -1,118 +1,35 @@
 # AGENTS.md
 
-## Working Method
+## Work and Verify
 
-1. **Read the contract.** Inspect `package.json`, the declared entry, and the affected code. For every Pi API you touch, inspect the installed Pi types, documentation, or examples instead of guessing or relying on internals.
+Read `package.json`, the affected code, and the installed Pi public types/docs/examples before changing an API integration. Keep changes focused; run `npm run verify` before completion. Never modify installed Pi source or depend on private implementation.
 
-   Complete when every changed Pi resource and lifecycle hook is tied to a verified public contract.
+The package has one direct TypeScript entry, `src/index.ts`. Keep import and the default `ExtensionAPI` factory synchronous and free of settings I/O or feature initialization. Register resources immediately; defer expensive implementation until a callback needs it. Keep Pi-host packages as optional `"*"` peers and development dependencies, not bundled copies.
 
-2. **Protect the cold path.** Apply the startup and ownership invariants below before adding feature code. Separate the synchronous registration shell from implementation that can wait until first use.
+## Settings Are Supplied
 
-   Complete when registration is synchronous and every expensive or owned capability has an explicit activation and disposal boundary.
+Use the existing settings setup; do not ask the user to choose a settings architecture.
 
-3. **Implement one coherent capability.** Preserve the enabled lifecycle, schema-led settings, typed boundaries, and package architecture below. Add no abstraction or toolchain layer without a concrete requirement.
+- Edit `src/settings-input.ts`: the TypeBox schema, metadata, and optional example. Keep it safe to import at generation time. Use a closed root object, useful descriptions and valid defaults; use codecs for transformations and `StaticDecode` for resolved types. Omit `exampleSettings` for simple scalars; add a realistic, valid partial example automatically when structured or interacting options warrant it. Give complex array-item and record-value objects a PascalCase `title`, as required by the generator.
+- Run `npm run config:generate`. Do not hand-edit `src/settings.prevalidated.ts`, `config.schema.json`, or the README settings markers. Keep all four declared artifacts in the package.
+- `src/settings.ts` hydrates the generated artifact and loads settings through `@zigai/pi-extension-settings`. Keep that package a runtime dependency. Do not hardcode Pi paths or write settings files directly.
+- Defaults are overlaid by global settings, then trusted-project settings. Objects merge; arrays and scalars replace. Loading can create missing global settings and refresh the editor schema, but leaves existing invalid files untouched and reports diagnostics. Never expose raw setting values or secrets in diagnostics.
+- If adding a settings editor, use `updatePiExtensionSettings()` after loading. Handle every typed outcome; use `expectedRevision` for snapshot edits. Do not add a second mutation queue.
 
-   Complete when inputs are refined at their boundary, project-disabled callbacks have no side effects, and all acquired resources have one owner.
+## Session Ownership
 
-4. **Prove the result through real seams.** Regenerate settings artifacts when their source changes, add risk-matched behavior evidence, then run the repository release gate.
+`createSessionSettings()` owns a small synchronous cache. The scaffold prepares settings and reports diagnostics before the first agent turn. `session_start` and `session_shutdown` clear the snapshot without loading it. Disabled and invalid results are cached too; diagnostics are reported only on the first load when `ctx.hasUI`.
 
-   Complete when every changed behavior, failure path, lifecycle transition, and package assumption has evidence and `npm run verify` passes.
+When adding tools, commands, shortcuts, or event behavior, call the same cache's `get(ctx)` at every possible first-use entry point and return without feature side effects if it returns `undefined`. Configuration loading/diagnostics are the gate itself, not enabled feature behavior. Remove the preparation event if the feature only needs settings at another entry point. If actual feature behavior begins at `session_start`, load settings in that handler after resetting; that is its correct first-use boundary. Settings changes take effect after a session reset or reload. `pi config` is the zero-load disable: it prevents import and registration entirely.
 
-## Cold Path and Pi Contract
+Tool renderers receive `ToolRenderContext`, **not** `ExtensionContext`. Do not call `get(ctx)` from a renderer, perform settings I/O there, or retain an execution context for it. Render from arguments/results and renderer state; carry any needed presentation decision in execution results. A call renderer may run before execution. Guard dialogs/notifications with `ctx.hasUI` and terminal-only UI with `ctx.mode === "tui"`.
 
-- The **cold path** is module import and the default factory. Startup speed is the primary architecture constraint: keep this path deterministic, synchronous, and free of settings or feature I/O.
-- This repository is a Pi package. `package.json` is the source of truth for explicit Pi resources; the entry is `{{ "dist/index.ts" if build_mode == "bundle" else "src/index.ts" }}` and exports a default factory receiving Pi's `ExtensionAPI`.
-- The default factory stays synchronous. Register names, schemas, commands, renderers, and lifecycle handlers immediately, but load network clients, discovery, highlighters, native processes, and other expensive implementation from the first callback that needs them.
-- Imports are startup work. Keep `src/index.ts` as the registration shell, prefer type-only imports, and do not start timers, subprocesses, watchers, network requests, or other owned work at module scope.
-- Do not resolve extension settings in the factory. Treat `session_start` as the reset boundary and resolve settings exactly once in the first callback that needs them. If the feature genuinely begins at `session_start`, that handler is the correct first-use boundary.
-- Add `src/runtime.ts` only when deferred work exists. It owns one memoized activation, cancellation, stale-session rejection, explicit failed-activation policy, and exactly-once disposal.
-- Bundling reduces module-resolution overhead; it does not make eager initialization cheap. Performance claims require multiple equivalent cold runs with the median, environment, and baseline reported.
-- Keep Pi-host packages (`@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, `@earendil-works/pi-coding-agent`, `@earendil-works/pi-tui`, and `typebox`) as optional `peerDependencies` with `"*"` and as development dependencies only when local checks require them. Never bundle those identities.
-- Do not modify Pi's installed source or depend on its private implementation.
-{% if build_mode == "bundle" %}- `scripts/build.mjs` bundles local implementation into an ESM `.ts` entry while leaving package imports external. Preserve deferred imports and the checks for bundled dependencies and absolute workspace paths.
-- Keep `scripts/build.mjs` in the npm tarball. Its `prepare` guard builds an ignored `dist` for Git installs and reuses packaged `dist` without importing development-only esbuild for registry installs. Do not commit `dist`.
-{% endif %}
-## Enabled and Session Lifecycle
+Do not add a generic runtime/lifecycle framework. Add cancellation, stale-session rejection, failed-activation policy, and exactly-once disposal only when a feature actually owns async work or resources. Abort/dispose those resources before clearing their session state; test their real failure and replacement paths.
 
-- `enabled` is the extension-owned behavior switch. Gate every tool, command, renderer, shortcut, and event callback before behavior; synchronously registered resources may remain visible while disabled.
-- Treat `session_start` as the session reset boundary. Clear cached settings and activation state there without reading settings unless enabled behavior must begin during that handler.
-- Resolve global and trusted-project layers exactly once at the first tool, command, renderer, shortcut, or event callback that needs them. Use a separate activation sentinel: disabled settings still count as completed activation, and extension-specific validation may deliberately reject a resolved value.
-- Every callback that can be the first feature entry point calls the same synchronous, idempotent activation seam. Report diagnostics only on that first activation.
-- Deferring settings removes synchronous filesystem work from Pi startup but moves it to first feature use. Do not defer when the feature must be ready during `session_start`.
-- Disabled callbacks have no side effects even though their synchronously registered resources can remain visible until Pi reloads.
-- `pi config` is the zero-load hard disable. It prevents module import and registration and is the preferred switch when startup cost must disappear entirely.
-- Treat contexts, enabled state, deferred results, timers, watchers, sockets, subprocesses, and abort controllers as **session-owned**. Reject results from stale sessions and dispose ownership exactly once on reload or `session_shutdown`.
-- Settings changes take effect on the next activation after reload or restart.
+## Capability Design and Evidence
 
-Use this shape when settings are not needed during `session_start`:
+Keep small extensions flat and split by concrete capability. Refine external inputs at their boundary; avoid `any`, unchecked casts, non-null assertions, speculative abstractions, and pass-through layers. Keep pure decisions separate from Pi mechanics once behavior becomes non-trivial. Give tools/commands useful descriptions, use Pi's `StringEnum` for model-facing enums, and truncate large tool output with a path to the complete output. Wrap an ordinary file tool's complete read-modify-write operation in Pi's `withFileMutationQueue`; settings writes use `updatePiExtensionSettings()` instead.
 
-```ts
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { {{ settings_loader_name }}, type ExtensionSettings } from "./settings.ts";
+Test observable behavior through real seams, without module mocks or method spies. The supplied tests use Pi's public loader/runner and the production settings cache with isolated files: cold loading, first use, diagnostic deduplication, disabled/invalid snapshots, and reset/shutdown. Add feature-specific enabled/disabled evidence as behavior is implemented; do not substitute empty-handler assertions. Add async, TUI, RPC, native, or performance checks only for branches the feature owns.
 
-let activationComplete = false;
-let settings: ExtensionSettings | undefined;
-
-const ensureSessionActivated = (ctx: ExtensionContext): ExtensionSettings | undefined => {
-  if (activationComplete) return settings?.enabled === true ? settings : undefined;
-
-  const loaded = {{ settings_loader_name }}(ctx);
-  settings = loaded.settings;
-  activationComplete = true;
-  if (ctx.hasUI) {
-    for (const diagnostic of loaded.diagnostics) {
-      ctx.ui.notify(diagnostic.message, diagnostic.severity);
-    }
-  }
-  return settings?.enabled === true ? settings : undefined;
-};
-
-pi.on("session_start", () => {
-  activationComplete = false;
-  settings = undefined;
-});
-```
-
-Call `ensureSessionActivated(ctx)` from every possible first feature callback. Also reset it during `session_shutdown`; abort and dispose other session-owned work before clearing its state.
-
-## Schema-Led Settings
-
-- `src/settings-input.ts` is the sole authoring source: TypeBox schema, metadata, and optional example. Keep it safe for build-time import—no Pi registration, generated-artifact import, filesystem mutation, or feature initialization.
-- Keep the root object closed with `additionalProperties: false`. Every setting needs a useful description and valid default; represent transformation with TypeBox codecs instead of downstream conversion.
-- `src/settings.prevalidated.ts` is generated. `src/settings.ts` hydrates it with `definePrevalidatedExtensionSettings` and loads Pi settings with `loadPiExtensionSettings`.
-- Derive resolved settings as `StaticDecode<typeof settingsSchema>`. Never duplicate the interface, cast loaded values to it, or cast decoded external data.
-- Define `exampleSettings` only when structured or interacting options benefit from one realistic advanced example. It is a validated partial layer: keep it valid JSON, focused, different from the defaults, and free of secrets and maintainer-specific paths.
-- Give complex array-item and record-value object schemas a concise PascalCase `title`, such as `ModelMode`, so generated option tables remain readable.
-- Resolution applies schema defaults, then global settings, then trusted-project settings. Objects merge recursively; arrays and scalar values replace earlier values.
-- Loading may scaffold a missing global settings file and install or refresh its editor schema. It never overwrites or repairs an existing settings file and never creates a project settings file. Malformed or invalid layers stay untouched and produce diagnostics without exposing setting values or secrets.
-- The settings quartet—`src/settings-input.ts`, `src/settings.prevalidated.ts`, `config.schema.json`, and the generated README section—must stay synchronized, declared in `piExtensionSettings`, and present in the npm package. Generate them with `npm run config:generate`; never hand-edit generated files or README markers.
-- Keep `@zigai/pi-extension-settings` as a normal runtime dependency, not a `bundleDependency`.
-- Never hardcode Pi configuration paths. Resolve global paths and trusted-project overrides through the settings package and Pi context.
-
-## Settings Updates
-
-- Use `updatePiExtensionSettings()` instead of reading or writing extension settings files directly. Call the loader first so the generated editor schema is installed and verified.
-- The update callback receives the latest encoded layer and runs synchronously once while the settings sources are locked. Keep it deterministic and side-effect free; the package validates the layer and resolved settings before atomic publication.
-- A project update requires a trusted project. Unlike loading, this explicit write may create a missing trusted-project settings file. Existing malformed or invalid files remain unchanged.
-- For a snapshot-based editor, pass the loaded `globalRevision` or `projectRevision` as `expectedRevision` and handle `conflict`. Omit the revision for a semantic update that should apply to the latest valid layer.
-- Handle every typed update outcome. Only `updated` and `unchanged` are successful; surface `conflict`, `blocked`, `invalid-existing`, `invalid-update`, and `failed` without logging setting values.
-- Do not wrap `updatePiExtensionSettings()` in another mutation queue; it already coordinates Pi's per-file queue, a cooperative inter-process lock, validation, and atomic replacement.
-
-## Capability Design
-
-- Keep small extensions flat. Split by concrete capability, not generic `utils`, `helpers`, `services`, or `managers` folders.
-- Once logic becomes non-trivial, keep pure decisions separate from Pi and runtime mechanics. Refine framework, persisted, model-provided, and serialized input at its boundary and pass the refined value inward.
-- Do not bypass contracts with `any`, unchecked casts, or non-null assertions. Avoid pass-through wrappers and speculative extension points.
-- Put useful user- and model-facing descriptions on every tool, command, flag, and shortcut. A tool-specific prompt guideline must name that exact tool.
-- Use `StringEnum` from `@earendil-works/pi-ai` for model-facing string enums.
-- Wrap the entire read-modify-write operation of an ordinary file-mutating tool in Pi's mutation queue. Extension settings updates use `updatePiExtensionSettings()` instead.
-- Truncate large tool output and tell the model where the complete output was saved.
-- Guard terminal-only work with `ctx.mode === "tui"` and dialogs or notifications with `ctx.hasUI`.
-
-## Real-Seam Verification
-
-- A **real seam** is the public Pi loader/API or another intentional production boundary. Test observable results there; do not export internals for tests, patch modules, use method spies, or assert incidental call order.
-- `test/load.test.ts` must load the declared entry through Pi's real `DefaultResourceLoader`, prove module import and the factory create no settings files, and prove the synchronous lifecycle registration contract with both enabled and globally disabled settings. Feature tests must prove disabled callbacks are inert. This is the structural floor, not a substitute for behavior tests.
-- Each feature needs evidence that would fail if its claimed behavior disappeared. For deferred settings, prove reset-only startup, every possible early entry path, one activation per session, disabled and malformed settings, session replacement, and shutdown. Add expected-failure and lifecycle cases where applicable: repeated start/shutdown, failed activation, cancellation, stale async completion, and cleanup after partial activation. Do not restore `--passWithNoTests`.
-- Keep `scripts/package-check.mjs` limited to the packed artifact: declared entry and settings files, nested dependencies, development-only files, and workspace leakage. It is not a second feature-test framework.
-- Add representative TUI, RPC, native-platform, or benchmark checks only when the extension uses that branch. Verify visual/TUI behavior in a real TTY.
+Keep `scripts/package-check.mjs` focused on the npm artifact: declared files, nested dependencies, development-only files, and absolute workspace leakage. CI runs `npm ci` and `npm run verify`; preserve those gates.

@@ -31,7 +31,7 @@ lint:
 test:
     npm test
 
-# Run source and build checks
+# Run source checks
 check:
     npm run check
 
@@ -47,11 +47,7 @@ package-check:
 coverage:
     npm run coverage
 
-{% if build_mode == "bundle" %}# Build the production entry
-build:
-    npm run build
-
-{% endif %}# Apply automatic lint fixes and format code
+# Apply automatic lint fixes and format code
 fix:
     npm run lint:fix
     npm run format

@@ -18,20 +18,13 @@
     "url": {{ repository_git_url|tojson }}
   },
   "files": [
-{%- if build_mode == "bundle" %}
-    "dist",
-    "scripts/build.mjs",
-    "src/settings-input.ts",
-    "src/settings.prevalidated.ts",
-{%- else %}
     "src",
-{%- endif %}
     "README.md",
     "config.schema.json"{% if copyright_license != "None" %},
     "LICENSE"{% endif %}
   ],
   "type": "module",
-  "main": {{ ("dist/index.ts" if build_mode == "bundle" else "src/index.ts")|tojson }},
+  "main": "src/index.ts",
   "publishConfig": {
     "access": "public"
   },
@@ -40,20 +33,14 @@
     "lint:fix": "oxlint -c ./oxlint.config.ts . --fix",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "test": "{% if build_mode == 'bundle' %}npm run build --silent && {% endif %}vitest run",
-    "coverage": "{% if build_mode == 'bundle' %}npm run build --silent && {% endif %}vitest run --coverage",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-{%- if build_mode == "bundle" %}
-    "build": "node scripts/build.mjs",
-{%- endif %}
     "test:package": "node scripts/package-check.mjs",
     "config:generate": "pi-extension-settings generate",
     "config:check": "pi-extension-settings check",
     "check": "npm run config:check && npm run format:check && npm run lint && npm run typecheck && npm test",
     "verify": "npm run check && npm run test:package",
-{%- if build_mode == "bundle" %}
-    "prepare": "node scripts/build.mjs",
-{%- endif %}
     "prepack": "npm run verify"
   },
   "dependencies": {
@@ -83,13 +70,9 @@
   },
   "packageManager": "npm@11.19.0",
   "pi": {
-{%- for name, paths in pi_manifest_entries %}
-    {{ name|tojson }}: [
-{%- for path in paths %}
-      {{ path|tojson }}{% if not loop.last %},{% endif %}
-{%- endfor %}
-    ]{% if not loop.last %},{% endif %}
-{%- endfor %}
+    "extensions": [
+      "./src/index.ts"
+    ]
   },
   "piExtensionSettings": {
     "definition": "./src/settings-input.ts",
