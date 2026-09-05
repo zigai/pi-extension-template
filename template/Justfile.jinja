@@ -12,8 +12,12 @@ setup:
     npm run verify
 
 # Format code
-fmt:
+format:
     npm run format
+
+# Check formatting without modifying files
+format-check:
+    npm run format:check
 
 # Generate settings schema, prevalidation, and README documentation
 config-generate:
@@ -30,6 +34,10 @@ lint:
 # Run tests
 test:
     npm test
+
+# Static type check with TypeScript
+typecheck:
+    npm run typecheck
 
 # Run source checks
 check:
@@ -52,4 +60,10 @@ fix:
     npm run lint:fix
     npm run format
 
+# Remove coverage and temporary output
+clean:
+    rm -rf coverage
+
 alias cov := coverage
+alias fmt := format
+alias tsc := typecheck
