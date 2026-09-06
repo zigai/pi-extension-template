@@ -1,7 +1,7 @@
 import { defineConfig, type OxlintConfig } from "oxlint";
 
 const projectConfig: OxlintConfig = {
-    plugins: ["oxc", "typescript", "unicorn", "promise"],
+    plugins: ["oxc", "typescript", "unicorn", "promise", "vitest"],
     jsPlugins: ["oxlint-rules"],
     options: {
         typeAware: true,
