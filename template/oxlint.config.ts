@@ -60,6 +60,7 @@ const projectConfig: OxlintConfig = {
         "typescript/consistent-type-exports": "warn",
         "typescript/no-mixed-enums": "error",
         "typescript/no-unnecessary-qualifier": "error",
+        "typescript/no-deprecated": "warn",
         "typescript/no-floating-promises": "error",
         "typescript/no-unnecessary-type-conversion": "warn",
         "typescript/no-unnecessary-type-assertion": "error",
