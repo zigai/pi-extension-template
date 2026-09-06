@@ -1,7 +1,7 @@
 import { defineConfig, type OxlintConfig } from "oxlint";
 
 const projectConfig: OxlintConfig = {
-    plugins: ["oxc", "typescript", "unicorn", "promise", "vitest"],
+    plugins: ["oxc", "typescript", "unicorn", "promise", "vitest", "import", "node", "jsdoc"],
     jsPlugins: ["oxlint-rules"],
     options: {
         typeAware: true,
@@ -48,6 +48,17 @@ const projectConfig: OxlintConfig = {
         "default-case-last": "error",
         "default-param-last": "error",
         eqeqeq: "error",
+        "import/first": "error",
+        "import/no-commonjs": "error",
+        "import/no-cycle": "error",
+        "import/no-duplicates": "error",
+        "import/no-self-import": "error",
+        "jsdoc/check-property-names": "warn",
+        "jsdoc/check-tag-names": "warn",
+        "jsdoc/no-defaults": "warn",
+        "node/no-exports-assign": "error",
+        "node/no-new-require": "error",
+        "node/no-path-concat": "error",
         "no-array-constructor": "error",
         "no-duplicate-imports": "warn",
         "no-unreachable-loop": "error",
