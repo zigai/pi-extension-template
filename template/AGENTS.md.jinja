@@ -6,12 +6,12 @@ Read `package.json`, affected code, and installed Pi public types/docs/examples 
 
 Keep the direct TypeScript entry `src/index.ts` and its default `ExtensionAPI` factory synchronous and free of settings I/O or feature initialization. Register resources immediately; load expensive implementation when its callback needs it. Pi-host packages remain optional `"*"` peers and development dependencies, not bundled copies.
 
-## Settings
+{% if include_settings %}## Settings
 
 Use the supplied settings setup; no new settings architecture is needed.
 
 - **Author:** edit the TypeBox schema in `src/settings-input.ts`. Keep it generation-safe, with no feature initialization or generated-artifact imports. Use a closed root object, valid defaults and useful descriptions; use codecs for transformations and `StaticDecode` for resolved types. Give complex array-item/record-value objects PascalCase titles. Add a valid, non-secret partial `exampleSettings` only when structured or interacting options need it.
-- **Load:** keep hydration and the loader in `src/settings.ts`. Use the package root for authoring APIs, `/runtime` for `definePrevalidatedExtensionSettings`, and `/pi` for loading and updates. Keep `@zigai/pi-extension-settings` a normal runtime dependency.
+- **Load:** keep hydration and the thin loader in `src/settings.ts`. Use the package root for authoring APIs, `/runtime` for `definePrevalidatedExtensionSettings`, and `/pi` for loading and updates. Keep `@zigai/pi-extension-settings` and `typebox` as runtime dependencies.
 - **Generate:** run `npm run config:generate` after definition changes. Keep the input, prevalidation, schema, and README declared and published. Never hand-edit `settings.prevalidated.ts`, `config.schema.json`, or the README settings region.
 - **Respect persistence:** the library resolves defaults, global settings, then trusted-project overrides; objects merge and arrays/scalars replace. It handles Pi paths, global scaffolding, and schema refresh. Loading never overwrites existing settings or creates project files. Invalid layers remain untouched and are reported without their values. Do not hardcode paths, write settings directly, or expose secrets in diagnostics.
 - **Write:** load first, then use `updatePiExtensionSettings()` from `/pi`. The synchronous update callback receives the latest encoded layer. Handle every typed outcome; use `expectedRevision` for snapshot edits and omit it for semantic updates. Project writes require trust. Do not add another writer or mutation queue.
@@ -20,9 +20,17 @@ Consult the installed package's `docs/manual-setup.md`, `docs/runtime.md`, and `
 
 ## Session ownership
 
-The supplied `createSessionSettings()` cache prepares settings before the first agent turn. `session_start` and `session_shutdown` clear it without loading. Disabled and invalid results are cached; diagnostics appear only on first load when `ctx.hasUI`.
+Cache one full loader result inside the extension factory. Reset it at `session_start`; also clear it at `session_shutdown`. Load from the first callback that actually needs settings—use `session_start` only when behavior genuinely begins there. Disabled and rejected results are still completed cache states, so do not add a separate activation flag.
 
-Call the same cache's `get(ctx)` at every feature entry point and return without feature side effects when it returns `undefined`. Move the preparation event if another callback is the feature's actual first use. If behavior begins at `session_start`, load there after reset. Changes take effect after reset/reload. Deferred loading moves the cost to first use; `pi config` prevents import and registration entirely.
+Keep the cache beside the feature that owns activation rather than adding a generic lifecycle helper. Report `loaded.diagnostics` once when the cache is first filled and UI is available. Decide explicitly whether invalid persisted layers may fall back to valid defaults or should block sensitive behavior. A typical getter returns `undefined` when `loaded.settings.enabled` is false and performs any feature-specific semantic validation before caching its decision.
+
+Changes take effect after reset/reload. Deferred loading moves the cost to first use; `pi config` prevents import and registration entirely.
+
+{% else %}## Settings
+
+This extension was generated without a settings subsystem. Do not add one solely for an `enabled` switch; Pi package configuration can prevent the extension from loading. Add `@zigai/pi-extension-settings` only when the extension gains real user-editable behavior, then follow its installed `docs/manual-setup.md` and `docs/runtime.md` guidance.
+
+{% endif %}## Resource and UI ownership
 
 Do not add a generic lifecycle framework. For owned asynchronous work/resources, handle cancellation, stale completion, failed activation, and exactly-once disposal; dispose before clearing state and test failure/replacement paths.
 
@@ -32,8 +40,8 @@ Renderers receive `ToolRenderContext`, not `ExtensionContext`. Never load settin
 
 Keep small extensions flat and split substantial behavior by concrete capability. Separate pure decisions from Pi mechanics; avoid unchecked casts, non-null assertions, speculative abstractions, and pass-through layers.
 
-Give tools/commands useful descriptions, use Pi's `StringEnum` for model-facing enums, and truncate large tool output with a path to the full output. File tools use `withFileMutationQueue` around the complete read-modify-write operation; settings use the transaction API above.
+Give tools/commands useful descriptions, use Pi's `StringEnum` for model-facing enums, and truncate large tool output with a path to the full output. File tools use `withFileMutationQueue` around the complete read-modify-write operation.{% if include_settings %} Settings use the transaction API above.{% endif %}
 
-Test observable behavior without module mocks or method spies. Preserve the supplied real loader/lifecycle tests for cold loading, first use, disabled/invalid snapshots, diagnostic deduplication, and reset. Add enabled/disabled and async/TUI/RPC evidence for behavior the extension actually owns.
+Test observable behavior without module mocks or method spies. Keep real loader tests isolated for the whole lifecycle. Add enabled/disabled, failure, async, TUI, and RPC evidence only for behavior the extension actually owns.
 
-Keep `scripts/package-check.mjs` focused on npm artifacts: declared files, dependency topology, excluded development files, and absolute-path leakage. Preserve pre-commit and CI's `npm ci` / `npm run verify` gates.
+Keep `scripts/package-check.mjs` focused on the published npm artifact: declared files, dependency topology, excluded development files, absolute-path leakage, and loading the installed tarball. Preserve pre-commit and CI's `npm ci` / `npm run verify` gates.

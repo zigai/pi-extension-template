@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { {% if include_settings %}access, mkdir, {% endif %}mkdtemp, {% if include_settings %}readFile, {% endif %}rm{% if include_settings %}, writeFile{% endif %} } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,25 +10,25 @@ import {
     SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
+{% if include_settings %}
 import settingsInput from "../src/settings-input.ts";
-import { createSessionSettings } from "../src/settings.ts";
-
+import { {{ settings_loader_name }} } from "../src/settings.ts";
+{% endif %}
 const extensionPath = fileURLToPath(new URL("../src/index.ts", import.meta.url));
 
-// All Pi and extension settings I/O is confined to this fixture for the whole lifecycle.
-describe.sequential(`${settingsInput.title} extension`, () => {
+// All Pi and extension I/O is confined to this fixture for the whole lifecycle.
+describe("{{ title_name }} extension", { concurrent: false }, () => {
     let root: string;
     let agentDir: string;
-    let settingsPath: string;
-    let previousAgentDir: string | undefined;
+{% if include_settings %}    let settingsPath: string;
+{% endif %}    let previousAgentDir: string | undefined;
     const sessions: AgentSession[] = [];
 
     beforeEach(async () => {
-        root = await mkdtemp(path.join(tmpdir(), `${settingsInput.id}-`));
+        root = await mkdtemp(path.join(tmpdir(), "{{ repo_name }}-"));
         agentDir = path.join(root, "agent");
-        settingsPath = path.join(agentDir, "extension-settings", `${settingsInput.id}.json`);
-        previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+{% if include_settings %}        settingsPath = path.join(agentDir, "extension-settings", `${settingsInput.id}.json`);
+{% endif %}        previousAgentDir = process.env.PI_CODING_AGENT_DIR;
         process.env.PI_CODING_AGENT_DIR = agentDir;
     });
 
@@ -40,16 +40,15 @@ describe.sequential(`${settingsInput.title} extension`, () => {
         await rm(root, { recursive: true, force: true });
     });
 
-    async function saveSettings(content: string): Promise<void> {
-        await mkdir(path.dirname(settingsPath), { recursive: true });
-        await writeFile(settingsPath, content);
-    }
-
     async function loadRunner() {
         const loader = new DefaultResourceLoader({
             cwd: root,
             agentDir,
             additionalExtensionPaths: [extensionPath],
+            noSkills: true,
+            noPromptTemplates: true,
+            noThemes: true,
+            noContextFiles: true,
         });
         await loader.reload();
         const loaded = loader.getExtensions();
@@ -63,115 +62,48 @@ describe.sequential(`${settingsInput.title} extension`, () => {
             tools: [],
         });
         sessions.push(session);
-        const runner = session.extensionRunner;
-        const errors: string[] = [];
-        const notifications: string[] = [];
-        runner.onError((error) => errors.push(error.error));
-        runner.setUIContext(
-            {
-                ...runner.getUIContext(),
-                notify(message) {
-                    notifications.push(message);
-                },
-            },
-            "rpc",
-        );
-        return { runner, errors, notifications };
+        return session.extensionRunner;
     }
 
-    it("keeps import, registration and repeated session resets free of settings I/O", async () => {
-        const { runner, errors } = await loadRunner();
-        expect(runner.hasHandlers("session_start")).toBe(true);
-        expect(runner.hasHandlers("session_shutdown")).toBe(true);
-        expect(runner.hasHandlers("before_agent_start")).toBe(true);
-        await expect(access(path.dirname(settingsPath))).rejects.toMatchObject({ code: "ENOENT" });
-        await runner.emit({ type: "session_start", reason: "startup" });
-        await runner.emit({ type: "session_start", reason: "new" });
-        await runner.emit({ type: "session_shutdown", reason: "quit" });
-        await expect(access(path.dirname(settingsPath))).rejects.toMatchObject({ code: "ENOENT" });
-        expect(errors).toEqual([]);
-    });
-
-    it("prepares settings at the first turn, caches them, and reloads after replacement and shutdown", async () => {
-        const { runner, errors, notifications } = await loadRunner();
-        await runner.emitBeforeAgentStart("Hello", undefined, "", { cwd: root });
-        const initial = await readFile(settingsPath, "utf8");
-        expect(JSON.parse(initial)).toMatchObject({ enabled: true });
-        expect(notifications).toEqual([]);
-
-        await saveSettings("{broken");
-        await runner.emitBeforeAgentStart("Again", undefined, "", { cwd: root });
-        expect(notifications).toEqual([]);
-        await runner.emit({ type: "session_start", reason: "resume" });
-        expect(notifications).toEqual([]);
-        await runner.emitBeforeAgentStart("New session", undefined, "", { cwd: root });
-        expect(notifications.length).toBeGreaterThan(0);
-        const diagnosticCount = notifications.length;
-        await runner.emitBeforeAgentStart("Again", undefined, "", { cwd: root });
-        expect(notifications).toHaveLength(diagnosticCount);
-        await expect(readFile(settingsPath, "utf8")).resolves.toBe("{broken");
-
-        await runner.emit({ type: "session_shutdown", reason: "quit" });
-        await runner.emit({ type: "session_shutdown", reason: "quit" });
-        expect(notifications).toHaveLength(diagnosticCount);
-        // Calling the production seam after shutdown proves its previous snapshot was cleared.
-        await runner.emitBeforeAgentStart("Restarted", undefined, "", { cwd: root });
-        expect(notifications).toHaveLength(diagnosticCount * 2);
-        expect(errors).toEqual([]);
-    });
-
-    it("preserves disabled settings during loading and reset, and caches disabled first use", async () => {
-        const disabled = '{"enabled":false}\n';
-        await saveSettings(disabled);
-        const { runner, errors, notifications } = await loadRunner();
-        await runner.emit({ type: "session_start", reason: "startup" });
-        await expect(readFile(settingsPath, "utf8")).resolves.toBe(disabled);
-        await runner.emitBeforeAgentStart("Disabled", undefined, "", { cwd: root });
-        await saveSettings("{broken");
-        await runner.emitBeforeAgentStart("Still disabled", undefined, "", { cwd: root });
-        expect(notifications).toEqual([]);
-        await runner.emit({ type: "session_start", reason: "reload" });
-        await runner.emitBeforeAgentStart("Reloaded", undefined, "", { cwd: root });
-        expect(notifications.length).toBeGreaterThan(0);
-        expect(errors).toEqual([]);
-    });
-
-    it("returns only enabled settings and applies trusted project overrides at the cache seam", async () => {
-        const { runner } = await loadRunner();
-        const settings = createSessionSettings();
+    it("loads the direct TypeScript entry without extension-owned I/O", async () => {
+        const runner = await loadRunner();
+        expect(runner.getAllRegisteredTools()).toEqual([]);
+{% if include_settings %}        await expect(access(path.dirname(settingsPath))).rejects.toMatchObject({ code: "ENOENT" });
+{% endif %}    });
+{% if include_settings %}
+    it("loads settings on explicit first use and preserves malformed files", async () => {
+        const runner = await loadRunner();
         const ctx = runner.createContext();
-        const enabled = settings.get(ctx);
-        expect(enabled?.enabled).toBe(true);
-        await saveSettings('{"enabled":false}');
-        expect(settings.get(ctx)).toBe(enabled);
-        settings.reset();
-        expect(settings.get(ctx)).toBeUndefined();
-        await saveSettings('{"enabled":true}');
-        expect(settings.get(ctx)).toBeUndefined();
-        settings.reset();
-        expect(settings.get(ctx)?.enabled).toBe(true);
+        const initial = {{ settings_loader_name }}(ctx);
+        expect(initial.settings.enabled).toBe(true);
+        expect(initial.diagnostics).toEqual([]);
+        expect(JSON.parse(await readFile(settingsPath, "utf8"))).toMatchObject({ enabled: true });
 
+        await writeFile(settingsPath, "{broken");
+        const malformed = {{ settings_loader_name }}(ctx);
+        expect(malformed.diagnostics.length).toBeGreaterThan(0);
+        await expect(readFile(settingsPath, "utf8")).resolves.toBe("{broken");
+    });
+
+    it("applies only trusted project overrides", async () => {
+        const runner = await loadRunner();
         const projectDirectory = path.join(root, ".pi", "extension-settings");
         await mkdir(projectDirectory, { recursive: true });
         await writeFile(
             path.join(projectDirectory, `${settingsInput.id}.json`),
             '{"enabled":false}',
         );
-        settings.reset();
-        expect(settings.get({ ...ctx, isProjectTrusted: () => true })).toBeUndefined();
-        settings.reset();
-        expect(settings.get({ ...ctx, isProjectTrusted: () => false })?.enabled).toBe(true);
-    });
 
-    it("keeps malformed settings untouched and diagnostics quiet without UI", async () => {
-        await saveSettings("{broken");
-        const { runner, notifications } = await loadRunner();
-        const settings = createSessionSettings();
-        const ctx = { ...runner.createContext(), hasUI: false };
-        // Invalid layers are ignored by the settings package, leaving the schema defaults.
-        expect(settings.get(ctx)?.enabled).toBe(true);
-        expect(settings.get(ctx)?.enabled).toBe(true);
-        expect(notifications).toEqual([]);
-        await expect(readFile(settingsPath, "utf8")).resolves.toBe("{broken");
+        const ctx = runner.createContext();
+        const untrusted = {{ settings_loader_name }}({
+            ...ctx,
+            isProjectTrusted: () => false,
+        });
+        const trusted = {{ settings_loader_name }}({
+            ...ctx,
+            isProjectTrusted: () => true,
+        });
+        expect(untrusted.settings.enabled).toBe(true);
+        expect(trusted.settings.enabled).toBe(false);
     });
-});
+{% endif %}});

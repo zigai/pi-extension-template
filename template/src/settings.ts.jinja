@@ -1,4 +1,3 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { loadPiExtensionSettings, type PiSettingsContext } from "@zigai/pi-extension-settings/pi";
 import { definePrevalidatedExtensionSettings } from "@zigai/pi-extension-settings/runtime";
 import type { StaticDecode } from "typebox";
@@ -13,7 +12,7 @@ export const extensionSettingsDefinition = definePrevalidatedExtensionSettings(
     prevalidatedSettings,
 );
 
-/** Load resolved global and trusted-project settings for this session. */
+/** Load resolved global and trusted-project settings. The caller owns session caching. */
 export function {{ settings_loader_name }}(ctx: PiSettingsContext) {
     return loadPiExtensionSettings(extensionSettingsDefinition, ctx, {
         bundledSchema: {
@@ -21,28 +20,6 @@ export function {{ settings_loader_name }}(ctx: PiSettingsContext) {
             url: new URL("../config.schema.json", import.meta.url),
         },
     });
-}
-
-/** Own one lazy settings snapshot per session, including disabled and invalid results. */
-export function createSessionSettings() {
-    let loaded: ReturnType<typeof {{ settings_loader_name }}> | undefined;
-
-    return {
-        get(ctx: ExtensionContext): ExtensionSettings | undefined {
-            if (loaded === undefined) {
-                loaded = {{ settings_loader_name }}(ctx);
-                if (ctx.hasUI) {
-                    for (const diagnostic of loaded.diagnostics) {
-                        ctx.ui.notify(diagnostic.message, diagnostic.severity);
-                    }
-                }
-            }
-            return loaded.settings.enabled ? loaded.settings : undefined;
-        },
-        reset(): void {
-            loaded = undefined;
-        },
-    };
 }
 
 export default extensionSettingsDefinition;

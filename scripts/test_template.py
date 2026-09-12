@@ -33,14 +33,19 @@ class TemplateTests(unittest.TestCase):
             git_user_email="example@example.com",
         )
 
-    def test_questions_do_not_offer_build_or_settings_architecture(self) -> None:
-        keys = {question.key for question in manifest.questions(self.env, Path("pi-example"))}
+    def test_questions_offer_settings_as_a_capability_not_an_architecture(self) -> None:
+        questions = manifest.questions(self.env, Path("pi-example"))
+        keys = {question.key for question in questions}
         self.assertNotIn("build_mode", keys)
-        self.assertFalse(any("settings" in key for key in keys))
+        self.assertIn("include_settings", keys)
 
-    def test_render_uses_one_source_entry_and_automatic_settings(self) -> None:
-        for license_name, workflows in [("MIT", ["ci"]), ("None", [])]:
-            with self.subTest(license=license_name), tempfile.TemporaryDirectory() as directory:
+    def test_render_uses_one_source_entry_and_optional_settings(self) -> None:
+        scenarios = [("MIT", ["ci"], True), ("None", [], False)]
+        for license_name, workflows, include_settings in scenarios:
+            with (
+                self.subTest(license=license_name, include_settings=include_settings),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 destination = Path(directory)
                 answers = manifest._derived_answers(
                     self.env,
@@ -51,6 +56,7 @@ class TemplateTests(unittest.TestCase):
                         "repository_url": "https://github.com/example/pi-example",
                         "author_name": "Example",
                         "description": "",
+                        "include_settings": include_settings,
                         "pi_version": manifest.MINIMUM_PI_VERSION,
                         "copyright_license": license_name,
                         "github_workflows": workflows,
@@ -72,30 +78,52 @@ class TemplateTests(unittest.TestCase):
                 self.assertNotIn("build", package["scripts"])
                 self.assertNotIn("prepare", package["scripts"])
                 self.assertFalse((destination / "scripts/build.mjs").exists())
+                if include_settings:
+                    self.assertEqual(
+                        package["piExtensionSettings"],
+                        {
+                            "definition": "./src/settings-input.ts",
+                            "prevalidation": "./src/settings.prevalidated.ts",
+                            "schema": "./config.schema.json",
+                            "readme": "./README.md",
+                        },
+                    )
+                    self.assertTrue((destination / "src/settings.ts").is_file())
+                    self.assertIn(
+                        "@zigai/pi-extension-settings", package["dependencies"]
+                    )
+                    self.assertIn("typebox", package["dependencies"])
+                else:
+                    self.assertNotIn("piExtensionSettings", package)
+                    self.assertFalse((destination / "src/settings.ts").exists())
+                    self.assertFalse((destination / "src/settings-input.ts").exists())
+                    self.assertNotIn("config:generate", package["scripts"])
+                    self.assertEqual(package["dependencies"], {})
                 self.assertEqual(
-                    package["piExtensionSettings"],
-                    {
-                        "definition": "./src/settings-input.ts",
-                        "prevalidation": "./src/settings.prevalidated.ts",
-                        "schema": "./config.schema.json",
-                        "readme": "./README.md",
-                    },
+                    (destination / "LICENSE").exists(), license_name != "None"
                 )
-                self.assertTrue((destination / "src/settings.ts").is_file())
-                self.assertEqual((destination / "LICENSE").exists(), license_name != "None")
                 self.assertEqual(
                     (destination / ".github/workflows/ci.yml").exists(), bool(workflows)
                 )
-                self.assertEqual(
-                    package["dependencies"]["@zigai/pi-extension-settings"],
-                    manifest.EXTENSION_SETTINGS_PACKAGE_VERSION,
-                )
+                if include_settings:
+                    self.assertEqual(
+                        package["dependencies"]["@zigai/pi-extension-settings"],
+                        manifest.EXTENSION_SETTINGS_PACKAGE_VERSION,
+                    )
 
-    def test_local_settings_package_override_needs_no_question(self) -> None:
+    def test_local_settings_package_override_needs_no_architecture_question(
+        self,
+    ) -> None:
         self.env.globals["extension_settings_package_spec"] = "file:/tmp/settings.tgz"
         self.assertEqual(
-            manifest._package_dependencies(self.env),
-            [("@zigai/pi-extension-settings", "file:/tmp/settings.tgz")],
+            manifest._package_dependencies(self.env, include_settings=True),
+            [
+                ("@zigai/pi-extension-settings", "file:/tmp/settings.tgz"),
+                ("typebox", "^1.3.11"),
+            ],
+        )
+        self.assertEqual(
+            manifest._package_dependencies(self.env, include_settings=False), []
         )
 
 

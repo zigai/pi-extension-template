@@ -10,9 +10,9 @@ pi install npm:{{ package_name }}
 
 ## Usage
 
-Start Pi normally. This scaffold prepares configuration before the first agent turn; it does not yet add tools or commands.
+Start Pi normally. This scaffold does not yet add tools, commands, or other behavior.
 
-<!-- pi-extension-settings:start -->
+{% if include_settings %}<!-- pi-extension-settings:start -->
 ## Configuration
 
 Run `npm run config:generate` to generate this section.
@@ -20,7 +20,7 @@ Run `npm run config:generate` to generate this section.
 
 Set `enabled` to `false` to disable extension behavior, then reload Pi. Use `pi config` to prevent loading the extension entirely.
 
-## Development
+{% endif %}## Development
 
 ```sh
 just setup
@@ -28,8 +28,8 @@ just install
 just coverage
 ```
 
-Edit `src/settings-input.ts` and run `npm run config:generate` to update settings.
-`src/index.ts` is the direct TypeScript entry; `npm run verify` checks source, tests, and the npm artifact.
+{% if include_settings %}Edit `src/settings-input.ts` and run `npm run config:generate` to update settings.
+{% endif %}`src/index.ts` is the direct TypeScript entry; `npm run verify` checks source, tests, and the installed npm artifact.
 
 {% if copyright_license != "None" %}
 ## License

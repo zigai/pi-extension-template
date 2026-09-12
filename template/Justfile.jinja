@@ -19,7 +19,7 @@ install:
 format:
     npm run format
 
-# Generate settings schema, prevalidation, and README documentation
+{% if include_settings %}# Generate settings schema, prevalidation, and README documentation
 config-generate:
     npm run config:generate
 
@@ -27,7 +27,7 @@ config-generate:
 config-check:
     npm run config:check
 
-# Check code for lint issues
+{% endif %}# Check code for lint issues
 lint:
     npm run lint
 

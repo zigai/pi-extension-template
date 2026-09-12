@@ -1,17 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import { createSessionSettings } from "./settings.ts";
-
 /** Register the {{ title_name }} Pi extension. */
-export default function extension(pi: ExtensionAPI): void {
-    const settings = createSessionSettings();
-
-    pi.on("session_start", () => settings.reset());
-    pi.on("session_shutdown", () => settings.reset());
-
-    pi.on("before_agent_start", (_event, ctx) => {
-        // Prepare settings and report configuration diagnostics once, before the first turn.
-        // Feature callbacks must gate on get(ctx)'s enabled result; share this cache there.
-        settings.get(ctx);
-    });
-}
+export default function extension(_pi: ExtensionAPI): void {
+    // Register tools, commands, shortcuts, and event handlers here.
+    // Keep registration synchronous and free of settings I/O or feature initialization.
+{% if include_settings %}    // Load settings in the first callback that actually needs them; see AGENTS.md.
+{% endif %}}

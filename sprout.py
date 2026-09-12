@@ -183,11 +183,20 @@ def _package_keywords(answers: Mapping[str, object]) -> list[str]:
     return sorted(keywords)
 
 
-def _package_dependencies(env: Environment) -> list[tuple[str, str]]:
+def _package_dependencies(
+    env: Environment, *, include_settings: bool
+) -> list[tuple[str, str]]:
+    if not include_settings:
+        return []
+
     settings_package = str(
-        env.globals.get("extension_settings_package_spec") or EXTENSION_SETTINGS_PACKAGE_VERSION
+        env.globals.get("extension_settings_package_spec")
+        or EXTENSION_SETTINGS_PACKAGE_VERSION
     )
-    return [("@zigai/pi-extension-settings", settings_package)]
+    return [
+        ("@zigai/pi-extension-settings", settings_package),
+        ("typebox", "^1.3.11"),
+    ]
 
 
 def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
@@ -208,10 +217,7 @@ def _dev_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
 
 
 def _peer_dependencies(answers: Mapping[str, object]) -> list[tuple[str, str]]:
-    return [
-        ("@earendil-works/pi-coding-agent", "*"),
-        ("typebox", "*"),
-    ]
+    return [("@earendil-works/pi-coding-agent", "*")]
 
 
 def _string_sequence(value: object) -> list[str]:
@@ -232,6 +238,7 @@ def _derived_answers(
     title_name = _title_case(repo_name)
     repository_url = str(answers["repository_url"]).rstrip("/")
     result: dict[str, object] = dict(answers)
+    result.setdefault("include_settings", False)
     result.update(
         {
             "settings_loader_name": _settings_loader_name(repo_name),
@@ -243,7 +250,9 @@ def _derived_answers(
             "dev_dependencies": _dev_dependencies(result),
             "keywords": _package_keywords(answers),
             "license_value": package_license_value(answers.get("copyright_license")),
-            "package_dependencies": _package_dependencies(env),
+            "package_dependencies": _package_dependencies(
+                env, include_settings=bool(result["include_settings"])
+            ),
             "package_name_unscoped": _package_name_without_scope(package_name),
             "peer_dependencies": _peer_dependencies(result),
             "repository_git_url": repository_git_url(repository_url),
@@ -257,8 +266,12 @@ def _derived_answers(
 
 
 def questions(env: Environment, destination: Path) -> list[Question]:
-    git_user_name = str(env.globals.get("git_user_name") or _git_config_value("user.name"))
-    git_user_email = str(env.globals.get("git_user_email") or _git_config_value("user.email"))
+    git_user_name = str(
+        env.globals.get("git_user_name") or _git_config_value("user.name")
+    )
+    git_user_email = str(
+        env.globals.get("git_user_email") or _git_config_value("user.email")
+    )
     gh_available = shutil.which("gh") is not None
     suggested_repo = _default_repo_name(destination)
 
@@ -267,7 +280,9 @@ def questions(env: Environment, destination: Path) -> list[Question]:
 
     def default_repo_name(answers: Mapping[str, object]) -> str:
         package_name = str(answers.get("package_name") or suggested_repo)
-        return _kebab_case(_package_name_without_scope(package_name), fallback=suggested_repo)
+        return _kebab_case(
+            _package_name_without_scope(package_name), fallback=suggested_repo
+        )
 
     def default_repository_url(answers: Mapping[str, object]) -> str:
         return _default_repository_url(env, answers, destination)
@@ -302,6 +317,12 @@ def questions(env: Environment, destination: Path) -> list[Question]:
             prompt="Package description",
             default="",
             parser=lambda value, _answers: value.strip(),
+        ),
+        Question.yes_no(
+            key="include_settings",
+            prompt="Include user-editable extension settings?",
+            help_text="Choose this only when the extension has real configurable behavior; Pi can already disable packages.",
+            default=False,
         ),
         Question(
             key="repository_url",
@@ -356,6 +377,11 @@ def should_skip_file(relative_path: str, answers: Mapping[str, object]) -> bool:
 
     if should_skip_license_file(relative_path, dict(answers)):
         return True
+    if not bool(answers.get("include_settings")) and relative_path in {
+        "src/settings-input.ts.jinja",
+        "src/settings.ts.jinja",
+    }:
+        return True
     return relative_path.startswith(".github/") and "ci" not in github_workflows
 
 
@@ -367,7 +393,9 @@ def _add_github_repo_topics(
 ) -> None:
     gh_executable = shutil.which("gh")
     if gh_executable is None:
-        console.print("[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]")
+        console.print(
+            "[yellow]GitHub CLI not found; skipping repository topic setup.[/yellow]"
+        )
         return
 
     command = [
@@ -411,12 +439,16 @@ def _run_npm(destination: Path, arguments: Sequence[str], *, action: str) -> Non
         raise RuntimeError(f"Timed out while {action}") from cause
     if result.returncode != 0:
         output = "\n".join(
-            section for section in (result.stdout.strip(), result.stderr.strip()) if section
+            section
+            for section in (result.stdout.strip(), result.stderr.strip())
+            if section
         )
         raise RuntimeError(f"Failed while {action}: {output or 'unknown error'}")
 
 
-def _install_generate_and_verify(destination: Path) -> list[Path]:
+def _install_generate_and_verify(
+    destination: Path, *, include_settings: bool
+) -> list[Path]:
     # The generated prevalidation artifact does not exist until after dependencies are
     # installed. Suppress root lifecycle scripts for this first install, generate it,
     # then run the complete non-mutating verification before any git side effects.
@@ -425,14 +457,19 @@ def _install_generate_and_verify(destination: Path) -> list[Path]:
         ["install", "--ignore-scripts", "--no-audit", "--no-fund"],
         action="installing dependencies",
     )
-    _run_npm(destination, ["run", "config:generate"], action="generating settings artifacts")
+    if include_settings:
+        _run_npm(
+            destination,
+            ["run", "config:generate"],
+            action="generating settings artifacts",
+        )
     _run_npm(destination, ["run", "verify"], action="verifying the generated project")
 
-    expected = [
-        Path("package-lock.json"),
-        Path("config.schema.json"),
-        Path("src/settings.prevalidated.ts"),
-    ]
+    expected = [Path("package-lock.json")]
+    if include_settings:
+        expected.extend(
+            [Path("config.schema.json"), Path("src/settings.prevalidated.ts")]
+        )
     missing = [str(path) for path in expected if not (destination / path).is_file()]
     if missing:
         raise RuntimeError(f"Project verification did not create: {', '.join(missing)}")
@@ -454,7 +491,9 @@ def apply(context: ManifestContext) -> list[Path]:
         render_paths=True,
     )
 
-    for generated_path in _install_generate_and_verify(context.destination):
+    for generated_path in _install_generate_and_verify(
+        context.destination, include_settings=bool(render_answers["include_settings"])
+    ):
         if generated_path not in created:
             created.append(generated_path)
 
