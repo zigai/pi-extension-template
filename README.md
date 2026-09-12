@@ -85,8 +85,6 @@ Features:
                                          ci]
 ```
 
-Add extension behavior in `src/index.ts`. Keep registration synchronous and load settings or expensive implementation from the first callback that needs them. The generated `AGENTS.md` contains development and lifecycle guidance.
-
 ## Generated Project Structure
 
 ```text
