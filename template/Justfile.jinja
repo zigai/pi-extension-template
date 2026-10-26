@@ -39,12 +39,8 @@ test:
 typecheck:
     npm run typecheck
 
-# Run source checks
-check:
-    npm run check
-
 # Run all checks, including the npm package check
-verify:
+check:
     npm run verify
 
 # Check the npm artifact contract
@@ -66,4 +62,3 @@ clean:
 
 alias cov := coverage
 alias fmt := format
-alias tsc := typecheck
