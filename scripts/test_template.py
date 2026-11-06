@@ -75,8 +75,11 @@ class TemplateTests(unittest.TestCase):
                 self.assertEqual(package["pi"]["extensions"], ["./src/index.ts"])
                 self.assertIn("src", package["files"])
                 self.assertNotIn("esbuild", package["devDependencies"])
-                self.assertNotIn("build", package["scripts"])
+                self.assertIn("build", package["scripts"])
                 self.assertNotIn("prepare", package["scripts"])
+                self.assertNotIn("check", package["scripts"])
+                self.assertNotIn("verify", package["scripts"])
+                self.assertIn("test:package", package["scripts"])
                 self.assertFalse((destination / "scripts/build.mjs").exists())
                 if include_settings:
                     self.assertEqual(
