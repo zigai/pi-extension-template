@@ -34,4 +34,4 @@ jobs:
         run: npm ci
 
       - name: Verify
-        run: npm run verify
+        run: npm run format:check{% if include_settings %} && npm run config:check{% endif %} && npm run lint && npm run typecheck && npm run test:package && npm test
