@@ -2,7 +2,7 @@
 
 ## Work and verification
 
-Read `package.json`, affected code, and installed Pi public types/docs/examples before changing an integration. Use public extension APIs; do not modify installed Pi source or depend on private implementation. Run `npm run verify` before handing off changes.
+Read `package.json`, affected code, and installed Pi public types/docs/examples before changing an integration. Use public extension APIs; do not modify installed Pi source or depend on private implementation. Run `just check` before handing off changes.
 
 Keep the direct TypeScript entry `src/index.ts` and its default `ExtensionAPI` factory synchronous and free of settings I/O or feature initialization. Register resources immediately; load expensive implementation when its callback needs it. Pi-host packages remain optional `"*"` peers and development dependencies, not bundled copies.
 
@@ -44,4 +44,4 @@ Give tools/commands useful descriptions, use Pi's `StringEnum` for model-facing 
 
 Test observable behavior without module mocks or method spies. Keep real loader tests isolated for the whole lifecycle. Add enabled/disabled, failure, async, TUI, and RPC evidence only for behavior the extension actually owns.
 
-Keep `scripts/package-check.mjs` focused on the published npm artifact: declared files, dependency topology, excluded development files, absolute-path leakage, and loading the installed tarball. Preserve pre-commit and CI's `npm ci` / `npm run verify` gates.
+Keep `scripts/package-check.mjs` focused on the published npm artifact: declared files, dependency topology, excluded development files, absolute-path leakage, and loading the installed tarball. Use `npm ci` for dependencies and `just check` as the quality gate.

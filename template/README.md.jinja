@@ -29,10 +29,9 @@ just coverage
 ```
 
 {% if include_settings %}Edit `src/settings-input.ts` and run `npm run config:generate` to update settings.
-{% endif %}`src/index.ts` is the direct TypeScript entry; `npm run verify` checks source, tests, and the installed npm artifact.
-
+{% endif %}`src/index.ts` is the direct TypeScript entry; `just check` checks source, tests, and the installed npm artifact.
 {% if copyright_license != "None" %}
 ## License
 
 [{{ copyright_license }}](LICENSE)
-{% endif %}
+{% endif -%}

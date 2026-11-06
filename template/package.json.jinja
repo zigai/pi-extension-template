@@ -29,6 +29,8 @@
     "access": "public"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "format:files": "oxfmt",
     "lint": "oxlint -c ./oxlint.config.ts .",
     "lint:fix": "oxlint -c ./oxlint.config.ts . --fix",
     "format": "oxfmt .",
@@ -38,11 +40,8 @@
     "typecheck": "tsc --noEmit",
     "test:package": "node scripts/package-check.mjs",{% if include_settings %}
     "config:generate": "pi-extension-settings generate",
-    "config:check": "pi-extension-settings check",
-    "check": "npm run config:check && npm run format:check && npm run lint && npm run typecheck && npm test",{% else %}
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm test",{% endif %}
-    "verify": "npm run check && npm run test:package",
-    "prepack": "npm run verify"
+    "config:check": "pi-extension-settings check",{% endif %}
+    "prepack": "npm run format:check{% if include_settings %} && npm run config:check{% endif %} && npm run lint && npm run typecheck && npm run test:package && npm test"
   },{% if package_dependencies %}
   "dependencies": {
 {%- for name, version in package_dependencies %}

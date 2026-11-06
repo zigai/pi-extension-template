@@ -463,7 +463,12 @@ def _install_generate_and_verify(
             ["run", "config:generate"],
             action="generating settings artifacts",
         )
-    _run_npm(destination, ["run", "verify"], action="verifying the generated project")
+    checks = ["format:check"]
+    if include_settings:
+        checks.append("config:check")
+    checks.extend(["lint", "typecheck", "test:package", "test"])
+    for check in checks:
+        _run_npm(destination, ["run", check], action=f"running {check} checks")
 
     expected = [Path("package-lock.json")]
     if include_settings:

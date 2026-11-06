@@ -6,7 +6,7 @@ A Sprout template for typed Pi coding agent extensions.
 
 - Direct TypeScript entry with synchronous, I/O-free registration
 - Optional prevalidated TypeBox settings only for extensions with real configuration
-- Strict TypeScript, Oxlint, Oxfmt, Vitest, pre-commit, and Just recipes
+- Strict TypeScript, Oxlint, Oxfmt, Vitest, and Just recipes
 - Source-level Pi loader tests and installed-package verification
 - Optional GitHub Actions CI
 
@@ -15,10 +15,10 @@ A Sprout template for typed Pi coding agent extensions.
 - [Sprout](https://github.com/zigai/sprout)
 - Git
 - Node.js 22.19+ and npm
-- [pre-commit](https://pre-commit.com/)
 - [GitHub CLI](https://cli.github.com/) (optional, for GitHub repository creation)
 
 ## Usage
+
 Create a project directly:
 
 ```bash
@@ -101,7 +101,6 @@ your-project/
 ├── .editorconfig
 ├── .gitignore
 ├── .oxfmtrc.json
-├── .pre-commit-config.yaml
 ├── AGENTS.md                      # agent lifecycle and development guide
 ├── Justfile
 ├── LICENSE                        # optional

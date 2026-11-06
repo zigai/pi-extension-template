@@ -3,4 +3,5 @@ __pycache__/
 *.py[cod]
 .ruff_cache/
 .pytest_cache/
+.cache/
 .DS_Store
