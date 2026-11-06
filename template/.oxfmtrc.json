@@ -1,3 +1,6 @@
 {
-  "ignorePatterns": ["config.schema.json", "README.md", "src/settings.prevalidated.ts"]
+  "ignorePatterns": ["README.md", "**/*.md"],
+  "sortPackageJson": false,
+  "sortImports": false,
+  "sortTailwindcss": false
 }
