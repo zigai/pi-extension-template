@@ -1,6 +1,0 @@
-{
-  "ignorePatterns": ["README.md", "**/*.md"],
-  "sortPackageJson": false,
-  "sortImports": false,
-  "sortTailwindcss": false
-}
